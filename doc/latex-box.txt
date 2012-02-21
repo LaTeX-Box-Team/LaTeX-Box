@@ -94,7 +94,7 @@ Label completion is triggered by '\ref{' or '\eqref{'.  For example, >
 	\ref{sec:<CTRL-X><CTRL-O>
 offers a list of all matching labels, with their associated value and page number.
 Labels are read from the aux file, so label completion works only after
-complilation.
+compilation.
 
 It matches:
 	1. labels: >
