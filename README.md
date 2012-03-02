@@ -35,5 +35,4 @@ Copy the directories to your `.vim/` folder.
 This is mirrored on 
 
 - http://www.vim.org/scripts/script.php?script_id=3109
-- http://www.vim.org/scripts/script.php?script_id=3109
 - https://launchpad.net/~vim-latex-box
