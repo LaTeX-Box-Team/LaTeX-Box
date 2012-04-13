@@ -21,6 +21,8 @@ if !exists('b:LatexBox_loaded')
 	execute 'source ' . s:FNameEscape(prefix . 'complete.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'motion.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'latexmk.vim')
+	" added by AH to add main.tex file finder
+	execute 'source ' . s:FNameEscape(prefix . 'findmain.vim')
 
 	let b:LatexBox_loaded = 1
 

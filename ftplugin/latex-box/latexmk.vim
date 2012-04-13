@@ -201,6 +201,8 @@ function! LatexBox_LatexErrors(jump, ...)
 		let log = LatexBox_GetLogFile()
 	endif
 
+	execute 'cd ' . LatexBox_GetTexRoot()
+
 	if (a:jump)
 		execute 'cfile ' . fnameescape(log)
 	else
