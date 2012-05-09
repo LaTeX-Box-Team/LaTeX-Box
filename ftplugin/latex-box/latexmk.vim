@@ -201,7 +201,7 @@ function! LatexBox_LatexErrors(jump, ...)
 		let log = LatexBox_GetLogFile()
 	endif
 
-	if getcwd() !=# LatexBox_GetTexRoot()
+	if fnamemodify(getcwd(), ":p") !=# fnamemodify(LatexBox_GetTexRoot(), ":p")
 		redraw
 		echohl WarningMsg
 		echomsg 'Changing directory to TeX root: ' . LatexBox_GetTexRoot() . ' to support error log parsing'
