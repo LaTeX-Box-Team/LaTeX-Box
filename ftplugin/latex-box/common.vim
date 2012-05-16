@@ -123,7 +123,19 @@ function! LatexBox_GetMainTexFile()
 		return expand('%:p')
 	endif
 
-	" 3. prompt for file with completion
+	" 3. scan the first few lines of the file for root = filename
+	for linenum in range(1,5)
+		let linecontents = getline(linenum)
+		if linecontents =~ 'root\s*='
+			" Remove everything but the filename
+			let b:main_tex_file = substitute(linecontents, '.*root\s*=\s*', "", "")
+			let b:main_tex_file = substitute(b:main_tex_file, '\s*$', "", "")
+			let b:main_tex_file = fnamemodify(b:main_tex_file, ":p")
+			return b:main_tex_file
+		endif
+	endfor
+
+	" 4. prompt for file with completion
 	let b:main_tex_file = s:PromptForMainFile()
 	return b:main_tex_file
 endfunction

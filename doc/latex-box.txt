@@ -422,6 +422,12 @@ A: Instead of putting the settings in your ~/.latexmkrc file, put them in your
 	$pdflatex = 'xelatex %O %S'
 <
 
+Q: How can I specify the main TeX file for a multi-file document
+
+A: Add a comment to the first few lines of your file to specify this: >
+	%! TEX root = main.tex'
+<
+
 ==============================================================================
 
 TODO						*latex-box-todo*
