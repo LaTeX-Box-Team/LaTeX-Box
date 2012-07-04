@@ -103,9 +103,17 @@ endif
 " }}}
 
 " Vim Windows {{{
+
+" width of vertical splits
 if !exists('g:LatexBox_split_width')
 	let g:LatexBox_split_width = 30
 endif
+
+" where vertical splits appear
+if !exists('g:LatexBox_split_side')
+	let g:LatexBox_split_side = "leftabove"
+endif
+
 " }}}
 " }}}
 

@@ -189,6 +189,7 @@ Motion ~
 	Open a table of contents.
 	Use Enter to navigate to selected entry.
 	See |g:LatexBox_split_width|.
+	See |g:LatexBox_split_side|.
 
 
 
@@ -402,6 +403,12 @@ Vim Windows ~
 
 	Width of vertically split vim windows. Used for the table of contents.
 
+
+*g:LatexBox_split_side*	Default: "leftabove"
+
+	On which side the vertically split windows appear.  Used for the
+	table of contents.
+	Set it to "rightbelow" to have it on the right side.
 
 ==============================================================================
 

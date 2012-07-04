@@ -349,7 +349,7 @@ function! LatexBox_TOC()
 	" find closest section in current buffer
 	let closest_index = s:FindClosestSection(toc)
 
-	execute g:LatexBox_split_width . 'vnew LaTeX\ TOC'
+	execute g:LatexBox_split_side g:LatexBox_split_width . 'vnew LaTeX\ TOC'
 	setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile nowrap cursorline nonumber
 
 	for entry in toc
