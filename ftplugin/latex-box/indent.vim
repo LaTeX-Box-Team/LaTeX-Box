@@ -8,7 +8,7 @@ endif
 let b:did_indent = 1
 
 setlocal indentexpr=LatexBox_TexIndent()
-setlocal indentkeys==\end,=\item,),],},o,0\\
+setlocal indentkeys=0=\\end,0=\\end{enumerate},0=\\end{itemize},0=\\item,0),0],0},o,O,0\\
 
 let s:itemize_envs = ['itemize', 'enumerate', 'description']
 
