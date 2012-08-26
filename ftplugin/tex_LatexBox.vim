@@ -13,7 +13,7 @@ else
 	endfunction
 endif
 
-if !exists('b:LatexBox_loaded')
+if !exists('g:LatexBox_loaded')
 
 	let prefix = expand('<sfile>:p:h') . '/latex-box/'
 
@@ -23,7 +23,7 @@ if !exists('b:LatexBox_loaded')
 	execute 'source ' . s:FNameEscape(prefix . 'latexmk.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'folding.vim')
 
-	let b:LatexBox_loaded = 1
+	let g:LatexBox_loaded = 1
 
 endif
 

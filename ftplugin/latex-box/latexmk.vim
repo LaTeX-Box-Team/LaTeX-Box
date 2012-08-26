@@ -218,11 +218,11 @@ endfunction
 " }}}
 
 " Commands {{{
-command! -buffer -bang	Latexmk				call LatexBox_Latexmk(<q-bang> == "!")
-command! -buffer -bang	LatexmkClean		call LatexBox_LatexmkClean(<q-bang> == "!")
-command! -buffer -bang	LatexmkStatus		call LatexBox_LatexmkStatus(<q-bang> == "!")
-command! -buffer 		LatexmkStop			call LatexBox_LatexmkStop()
-command! -buffer      	LatexErrors			call LatexBox_LatexErrors(1)
+command! -bang	Latexmk				call LatexBox_Latexmk(<q-bang> == "!")
+command! -bang	LatexmkClean		call LatexBox_LatexmkClean(<q-bang> == "!")
+command! -bang	LatexmkStatus		call LatexBox_LatexmkStatus(<q-bang> == "!")
+command! LatexmkStop			call LatexBox_LatexmkStop()
+command! LatexErrors			call LatexBox_LatexErrors(1)
 " }}}
 
 autocmd VimLeavePre * call <SID>kill_all_latexmk()

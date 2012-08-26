@@ -130,13 +130,17 @@ function! s:FindBibData(...)
 		return ''
 	endif
 
+	let bibliography_cmds = [ '\\bibliography', '\\addbibresource', '\\addglobalbib', '\\addsectionbib' ]
+
 	let lines = readfile(file)
 
 	let bibdata_list = []
 
-	let bibdata_list +=
-				\ map(filter(copy(lines), 'v:val =~ ''\C\\bibliography\s*{[^}]\+}'''),
-				\ 'matchstr(v:val, ''\C\\bibliography\s*{\zs[^}]\+\ze}'')')
+	for cmd in bibliography_cmds
+		let bibdata_list +=
+				\ map(filter(copy(lines), 'v:val =~ ''\C' . cmd . '\s*{[^}]\+}'''),
+				\ 'matchstr(v:val, ''\C' . cmd . '\s*{\zs[^}]\+\ze}'')')
+	endfor
 
 	let bibdata_list +=
 				\ map(filter(copy(lines), 'v:val =~ ''\C\\\%(input\|include\)\s*{[^}]\+}'''),
@@ -223,6 +227,131 @@ function! LatexBox_BibComplete(regexp)
 endfunction
 " }}}
 
+" ExtractLabels {{{
+" Generate list of \newlabel commands in current buffer.
+" 
+" Searches the current buffer for commands of the form
+"	\newlabel{name}{{number}{page}.* 
+" and returns list of [ name, number, page ] tuples.
+function! ExtractLabels()
+	call cursor(1,1)
+	
+	let matches = []
+	let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+
+	while [lblline, lblbegin] != [0,0] 
+		let [nln, nameend] = searchpairpos( '{', '', '}', 'W' )
+		if nln != lblline
+			let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+			break
+		endif
+        let curname = strpart( getline( lblline ), lblbegin, nameend - lblbegin - 1 )
+
+        if 0 == search( '{\w*{', 'ce', lblline )
+            let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+            break
+        endif
+
+        let numberbegin = getpos('.')[2]
+        let [nln, numberend]  = searchpairpos( '{', '', '}', 'W' )
+		if nln != lblline
+			let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+			break
+		endif
+        let curnumber = strpart( getline( lblline ), numberbegin, numberend - numberbegin - 1 )
+
+        if 0 == search( '\w*{', 'ce', lblline )
+            let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+            break
+        endif
+
+        let pagebegin = getpos('.')[2]
+        let [nln, pageend]  = searchpairpos( '{', '', '}', 'W' )
+        if nln != lblline
+			let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+			break
+		endif
+        let curpage = strpart( getline( lblline ), pagebegin, pageend - pagebegin - 1 )
+
+        let matches += [ [ curname, curnumber, curpage ] ]
+
+        let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+	endwhile
+	
+	return matches 
+endfunction
+"}}}
+
+" ExtractInputs {{{
+" Generate list of \@input commands in current buffer.
+"
+" Searches the current buffer for \@input{file} entries and
+" returns list of all files. 
+function! ExtractInputs()
+	call cursor(1,1)
+
+	let matches = []
+	let [inline, inbegin] = searchpos( '\\@input{', 'ecW' )
+
+	while [inline, inbegin] != [0,0]
+		let [nln, inend] = searchpairpos( '{', '', '}', 'W' )
+		if nln != inline
+			let [inline, inbegin] = searchpos( '\\@input{', 'ecW' )
+			break
+		endif
+		let matches += [ strpart( getline( inline ), inbegin, inend - inbegin - 1 ) ]
+
+		let [inline, inbegin] = searchpos( '\\@input{', 'ecW' )
+	endwhile
+
+	return matches
+endfunction
+"}}}
+
+
+" s:LabelCache {{{
+" Cache of all labels.
+"
+" LabelCache is a dictionary mapping filenames to tuples
+" [ time, labels, inputs ]
+" where 
+" * time is modification time of the cache entry
+" * labels is a list like returned by ExtractLabels
+" * inputs is a list like returned by ExtractInputs
+let s:LabelCache = {}
+"}}}
+
+
+" GetLabelCache {{{
+" Extract labels from LabelCache and update it.
+"
+" Compares modification time of each entry in the label 
+" cache and updates it, if necessary. During traversal of
+" the LabelCache, all current labels are collected and 
+" returned.
+function! s:GetLabelCache(file)
+	let fid = fnamemodify(a:file, ':p')
+
+	let labels = []
+	if !has_key(s:LabelCache , fid) || s:LabelCache[fid][0] != getftime(fid)
+		" Open file in temporary split window for label extraction.
+		exe '1sp +let\ labels=ExtractLabels()|quit! ' . fid
+		exe '1sp +let\ inputs=ExtractInputs()|quit! ' . fid
+		let s:LabelCache[fid] = [ getftime(fid), labels, inputs ]
+	else
+		let labels = s:LabelCache[fid][1]
+	endif
+
+	for input in s:LabelCache[fid][2]
+		let labels += s:GetLabelCache(input)
+	endfor
+
+	return labels
+endfunction
+"}}}
+
+
+
 " Complete Labels {{{
 " the optional argument is the file name to be searched
 function! s:CompleteLabels(regex, ...)
@@ -237,56 +366,40 @@ function! s:CompleteLabels(regex, ...)
 		return []
 	endif
 
+	let labels = s:GetLabelCache(file)
+
+	let matches = filter( copy(labels), 'match(v:val[0], "' . a:regex . '") != -1' )
+	if empty(matches)
+		" also try to match label and number
+		let regex_split = split(a:regex)
+		if len(regex_split) > 1
+			let base = regex_split[0]
+			let number = escape(join(regex_split[1:], ' '), '.')
+			let matches = filter( copy(labels), 'match(v:val[0], "' . base . '") != -1 && match(v:val[1], "' . number . '") != -1' )
+		endif
+	endif
+	if empty(matches)
+		" also try to match number
+		let matches = filter( copy(labels), 'match(v:val[1], "' . a:regex . '") != -1' )
+	endif
+
 	let suggestions = []
-
-	" search for the target equation number
-	for line in filter(readfile(file), 'v:val =~ ''^\\newlabel{\|^\\@input{''')
-
-		echomsg "matching line: " . line
-
-		" search for matching label
-		let matches = matchlist(line, '^\\newlabel{\(' . a:regex . '[^}]*\)}{{\([^}]*\)}{\([^}]*\)}.*}')
-
-		if empty(matches)
-			" also try to match label and number
-			let regex_split = split(a:regex)
-			if len(regex_split) > 1
-				let base = regex_split[0]
-				let number = escape(join(regex_split[1:], ' '), '.')
-				let matches = matchlist(line, '^\\newlabel{\(' . base . '[^}]*\)}{{\(' . number . '\)}{\([^}]*\)}.*}')
-			endif
+	for m in matches
+		let entry = {'word': m[0], 'menu': '(' . m[1] . ') [p.' . m[2] . ']'}
+		if g:LatexBox_completion_close_braces && !s:NextCharsMatch('^\s*[,}]')
+			" add trailing '}'
+			let entry = copy(entry)
+			let entry.abbr = entry.word
+			let entry.word = entry.word . '}'
 		endif
-
-		if empty(matches)
-			" also try to match number
-			let matches = matchlist(line, '^\\newlabel{\([^}]*\)}{{\(' . escape(a:regex, '.') . '\)}{\([^}]*\)}.*}')
-		endif
-
-		if !empty(matches)
-
-			let entry = {'word': matches[1], 'menu': '(' . matches[2] . ') [p.' . matches[3] . ']'}
-
-			if g:LatexBox_completion_close_braces && !s:NextCharsMatch('^\s*[,}]')
-				" add trailing '}'
-				let entry = copy(entry)
-				let entry.abbr = entry.word
-				let entry.word = entry.word . '}'
-			endif
-			call add(suggestions, entry)
-		endif
-
-		" search for included files
-		let included_file = matchstr(line, '^\\@input{\zs[^}]*\ze}')
-		if included_file != ''
-			let included_file = LatexBox_kpsewhich(included_file)
-			call extend(suggestions, s:CompleteLabels(a:regex, included_file))
-		endif
+		call add(suggestions, entry)
 	endfor
 
 	return suggestions
-
 endfunction
 " }}}
+
+
 
 
 " Close Current Environment {{{
