@@ -13,6 +13,12 @@
 "               NOTE: From version 1.6 onwards, this function always trims
 "               away the .latexmain part of the file name before applying the
 "               modifier argument.
+"               NOTE: This file was ripped form the Vim-LaTeX-Suite project.
+"               http://vim-latex.sourceforge.net/
+"               The Vim-LaTeX-Suite projet carries the same licence as Vim
+"               itself, i.e. "Charityware" which is GPL-compatible, so this
+"               may or may not be appropriate to pull into the LaTeX-Box
+"               vim plugin...
 function! Tex_GetMainFileName(...)
 	if a:0 > 0
 		let modifier = a:1
