@@ -124,7 +124,7 @@ endif
 function! LatexBox_GetMainTexFile()
 
 	" 1. check for the b:main_tex_file variable
-	if exists('b:main_tex_file') && glob(b:main_tex_file, 1) != ''
+	if exists('b:main_tex_file') && filereadable(b:main_tex_file)
 		return b:main_tex_file
 	endif
 
@@ -145,7 +145,7 @@ function! LatexBox_GetMainTexFile()
 		endif
 	endfor
 
-	" 3 borrow the Vim-Latex-Suite method of finding it
+	" 4 borrow the Vim-Latex-Suite method of finding it
 	if Tex_GetMainFileName() != expand('%:p')
 		let b:main_tex_file = Tex_GetMainFileName()
 		return b:main_tex_file
@@ -160,12 +160,13 @@ function! s:PromptForMainFile()
 	let saved_dir = getcwd()
 	execute 'cd ' . fnameescape(expand('%:p:h'))
 	let l:file = ''
-	while glob(l:file, 1) == ''
+	while !filereadable(l:file)
 		let l:file = input('main LaTeX file: ', '', 'file')
 		if l:file !~ '\.tex$'
 			let l:file .= '.tex'
 		endif
 	endwhile
+	let l:file = fnamemodify(l:file, ':p')	
 	execute 'cd ' . fnameescape(saved_dir)
 	return l:file
 endfunction
