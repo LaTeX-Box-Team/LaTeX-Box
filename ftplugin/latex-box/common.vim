@@ -124,7 +124,7 @@ endif
 function! LatexBox_GetMainTexFile()
 
 	" 1. check for the b:main_tex_file variable
-	if exists('b:main_tex_file') && glob(b:main_tex_file, 1) != ''
+	if exists('b:main_tex_file') && filereadable(b:main_tex_file)
 		return b:main_tex_file
 	endif
 
@@ -145,7 +145,7 @@ function! LatexBox_GetMainTexFile()
 		endif
 	endfor
 
-	" 3 borrow the Vim-Latex-Suite method of finding it
+	" 4 borrow the Vim-Latex-Suite method of finding it
 	if Tex_GetMainFileName() != expand('%:p')
 		let b:main_tex_file = Tex_GetMainFileName()
 		return b:main_tex_file
@@ -160,12 +160,13 @@ function! s:PromptForMainFile()
 	let saved_dir = getcwd()
 	execute 'cd ' . fnameescape(expand('%:p:h'))
 	let l:file = ''
-	while glob(l:file, 1) == ''
+	while !filereadable(l:file)
 		let l:file = input('main LaTeX file: ', '', 'file')
 		if l:file !~ '\.tex$'
 			let l:file .= '.tex'
 		endif
 	endwhile
+	let l:file = fnamemodify(l:file, ':p')
 	execute 'cd ' . fnameescape(saved_dir)
 	return l:file
 endfunction
@@ -217,9 +218,9 @@ command! LatexView			call LatexBox_View()
 " LatexBox_InComment([line], [col])
 " return true if inside comment
 function! LatexBox_InComment(...)
-	let line	= a:0 >= 1 ? a:1 : line('.')
-	let col		= a:0 >= 2 ? a:2 : col('.')
-	return synIDattr(synID(line("."), col("."), 0), "name") =~# '^texComment'
+	let line = a:0 >= 1 ? a:1 : line('.')
+	let col = a:0 >= 2 ? a:2 : col('.')
+	return synIDattr(synID(line, col, 0), "name") =~# '^texComment'
 endfunction
 " }}}
 
@@ -306,7 +307,7 @@ function! LatexBox_TexToTree(str)
 			let i2 = len(a:str)
 		endif
 		if i2 >= len(a:str) || a:str[i2] == '{'
-			if depth == 0 
+			if depth == 0
 				let item = substitute(strpart(a:str, i1, i2 - i1), '^\s*\|\s*$', '', 'g')
 				if !empty(item)
 					call add(tree, item)

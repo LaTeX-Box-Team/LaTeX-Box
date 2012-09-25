@@ -41,6 +41,39 @@ function! s:SearchAndSkipComments(pat, ...)
 endfunction
 " }}}
 
+" Search Position and Skip Comments {{{
+" s:SearchPosAndSkipComments(pattern, [flags], [stopline])
+function! s:SearchPosAndSkipComments(pat, ...)
+	let flags		= a:0 >= 1 ? a:1 : ''
+	let stopline	= a:0 >= 2 ? a:2 : 0
+	let saved_pos = getpos('.')
+
+	" search once
+	let [line,col] = searchpos(a:pat, flags, stopline)
+
+	if line
+		" do not match at current position if inside comment
+		let flags = substitute(flags, 'c', '', 'g')
+
+		" keep searching while in comment
+		while LatexBox_InComment(line,col)
+			let [line,col] = searchpos(a:pat, flags, stopline)
+			if !line
+				break
+			endif
+		endwhile
+	endif
+
+	if !line && flags !~ 'n'
+		" if no match found, restore position
+		call setpos('.', saved_pos)
+	endif
+
+	return [line,col]
+endfunction
+" }}}
+
+
 " begin/end pairs {{{
 "
 " s:JumpToMatch(mode, [backward])
@@ -306,7 +339,7 @@ function! s:ReadTOC(auxfile, ...)
 	for line in readfile(a:auxfile)
 
 		let included = matchstr(line, '^\\@input{\zs[^}]*\ze}')
-		
+
 		if included != ''
 			" append the input TOX to `toc` and `fileindices`
 			call s:ReadTOC(prefix . '/' . included, toc, fileindices)
@@ -464,7 +497,7 @@ function! s:TOCActivate(close)
 	execute b:calling_win . 'wincmd w'
 
 	let bnr = bufnr(entry['file'])
-	if bnr == -1 
+	if bnr == -1
 		execute 'badd ' . entry['file']
 		let bnr = bufnr(entry['file'])
 	endif
@@ -505,41 +538,41 @@ function! s:HighlightMatchingPair()
 	let close_pats = ['\\end\>', '\\right\>']
 	let dollar_pat = '\\\@<!\$'
 
-	let saved_pos = getpos('.')
 
 	if getline('.')[col('.') - 1] == '$'
 
-	   if strpart(getline('.'), col('.') - 2, 1) == '\'
-		   return
-	   endif
+		if strpart(getline('.'), col('.') - 2, 1) == '\'
+			return
+		endif
 
 		" match $-pairs
 		let lnum = line('.')
 		let cnum = col('.')
-	
+
 		" check if next character is in inline math
 		let [lnum2, cnum2] = searchpos('.', 'nW')
 		if lnum2 && s:HasSyntax('texMathZoneX', lnum2, cnum2)
-			call s:SearchAndSkipComments(dollar_pat, 'W')
+			let [line, col] = s:SearchPosAndSkipComments(dollar_pat, 'nW')
 		else
-			call s:SearchAndSkipComments(dollar_pat, 'bW')
+			let [line, col] = s:SearchPosAndSkipComments(dollar_pat, 'bnW')
 		endif
 
-		execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c\$'
-					\	. '\|\%' . line('.') . 'l\%' . col('.') . 'c\$\)/'
+		execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c\$' . '\|\%' . line . 'l\%' . col . 'c\$\)/'
 
 	else
-		" match other pairs
 
+		" match other pairs
+		"
 		" find first non-alpha character to the left on the same line
-		let [lnum, cnum] = searchpos('\A', 'cbW', line('.'))
+		let [lnum, cnum] = searchpos('\A', 'cbnW', line('.'))
 
 		let delim = matchstr(getline(lnum), '^\m\(' . join(open_pats + close_pats, '\|') . '\)', cnum - 1)
 
 		if empty(delim)
-			call setpos('.', saved_pos)
 			return
 		endif
+
+		let saved_pos = getpos('.')
 
 		for i in range(len(open_pats))
 			let open_pat = open_pats[i]
@@ -547,21 +580,24 @@ function! s:HighlightMatchingPair()
 
 			if delim =~# '^' . open_pat
 				" if on opening pattern, go to closing pattern
-				call searchpair('\C' . open_pat, '', '\C' . close_pat, 'W', 'LatexBox_InComment()')
+				call search('\A', 'cbW', line('.'))
+				let [line, col] = searchpairpos('\C' . open_pat, '', '\C' . close_pat, 'nW', 'LatexBox_InComment()')
 				execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c' . open_pats[i]
-							\	. '\|\%' . line('.') . 'l\%' . col('.') . 'c' . close_pats[i] . '\)/'
+							\	. '\|\%' . line . 'l\%' . col . 'c' . close_pats[i] . '\)/'
+				call setpos('.', saved_pos)
 				break
 			elseif delim =~# '^' . close_pat
 				" if on closing pattern, go to opening pattern
-				call searchpair('\C' . open_pat, '', '\C' . close_pat, 'bW', 'LatexBox_InComment()')
-				execute '2match MatchParen /\%(\%' . line('.') . 'l\%' . col('.') . 'c' . open_pats[i]
+				call search('\A', 'cbW', line('.'))
+				let [line, col] =  searchpairpos('\C' . open_pat, '', '\C' . close_pat, 'bnW', 'LatexBox_InComment()')
+				execute '2match MatchParen /\%(\%' . line . 'l\%' . col . 'c' . open_pats[i]
 							\	. '\|\%' . lnum . 'l\%' . cnum . 'c' . close_pats[i] . '\)/'
+				call setpos('.', saved_pos)
 				break
 			endif
 		endfor
-	endif
 
-	call setpos('.', saved_pos)
+	endif
 endfunction
 " }}}
 
