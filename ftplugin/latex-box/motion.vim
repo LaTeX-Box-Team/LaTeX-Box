@@ -41,38 +41,6 @@ function! s:SearchAndSkipComments(pat, ...)
 endfunction
 " }}}
 
-" Search Position and Skip Comments {{{
-" s:SearchPosAndSkipComments(pattern, [flags], [stopline])
-function! s:SearchPosAndSkipComments(pat, ...)
-	let flags		= a:0 >= 1 ? a:1 : ''
-	let stopline	= a:0 >= 2 ? a:2 : 0
-	let saved_pos = getpos('.')
-
-	" search once
-	let [line,col] = searchpos(a:pat, flags, stopline)
-
-	if line
-		" do not match at current position if inside comment
-		let flags = substitute(flags, 'c', '', 'g')
-
-		" keep searching while in comment
-		while LatexBox_InComment(line,col)
-			let [line,col] = searchpos(a:pat, flags, stopline)
-			if !line
-				break
-			endif
-		endwhile
-	endif
-
-	if !line && flags !~ 'n'
-		" if no match found, restore position
-		call setpos('.', saved_pos)
-	endif
-
-	return [line,col]
-endfunction
-" }}}
-
 
 " begin/end pairs {{{
 "
@@ -536,7 +504,7 @@ function! s:HighlightMatchingPair()
 
 	let open_pats = ['\\begin\>', '\\left\>']
 	let close_pats = ['\\end\>', '\\right\>']
-	let dollar_pat = '\\\@<!\$'
+	let dollar_pat = '\(\(\\\@<!\(\\\\\)*\)\@<=%.*\)\@<!\(\\\@<!\(\\\\\)*\)\@<=\$'
 
 
 	if getline('.')[col('.') - 1] == '$'
@@ -552,9 +520,9 @@ function! s:HighlightMatchingPair()
 		" check if next character is in inline math
 		let [lnum2, cnum2] = searchpos('.', 'nW')
 		if lnum2 && s:HasSyntax('texMathZoneX', lnum2, cnum2)
-			let [line, col] = s:SearchPosAndSkipComments(dollar_pat, 'nW')
+			let [line, col] = searchpos(dollar_pat, 'nW')
 		else
-			let [line, col] = s:SearchPosAndSkipComments(dollar_pat, 'bnW')
+			let [line, col] = searchpos(dollar_pat, 'bnW')
 		endif
 
 		execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c\$' . '\|\%' . line . 'l\%' . col . 'c\$\)/'
