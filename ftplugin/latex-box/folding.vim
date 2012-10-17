@@ -1,68 +1,123 @@
 " Folding support for LaTeX
 "
-" This folding will provide a script to compute the level of a fold based on:
-" - part
-" - chapter
-" - section
-" - subsection
+" Options
+" g:LatexBox_Folding       - Turn on/off folding
+" g:LatexBox_fold_parts    - Define which sections and parts to fold
+" g:LatexBox_fold_envs     - Turn on/off folding of environments
+" g:LatexBox_fold_preamble - Turn on/off folding of preamble
 "
 
-"set options for folding
+" {{{1 Set options
 if exists('g:LatexBox_Folding')
-    set fdm=expr
-    set foldexpr=LatexBox_FoldLevel(v:lnum)
+    setl foldmethod=expr
+    setl foldexpr=LatexBox_FoldLevel(v:lnum)
+    setl foldtext=LatexBox_FoldText(v:foldstart)
+endif
+if !exists('g:LatexBox_fold_preamble')
+    let g:LatexBox_fold_preamble=1
+endif
+if !exists('g:LatexBox_fold_envs')
+    let g:LatexBox_fold_envs=1
+endif
+if !exists('g:LatexBox_fold_parts')
+    let s:LatexBox_fold_parts=[
+                \ "part",
+                \ "chapter",
+                \ "section",
+                \ "subsection",
+                \ "subsubsection"
+                \ ]
 endif
 
-function! LatexBox_FoldLevel(linenum)
-    " Get the line and next line
-    let line = getline(a:linenum)
-    let nline = getline(a:linenum + 1)
+" {{{1 LatexBox_FoldLevel
+function! LatexBox_FoldLevel(lnum)
+    let line  = getline(a:lnum)
 
-    let ret = -2 
-    
-    " If next line is another section, end a fold at the good level 
-    if nline =~ '\\part{.*}'
-        let ret = "<1"
-    else
-        if nline =~ '\\chapter{.*}'
-            let ret = "<2"
-        else 
-            if nline =~ '\\section{.*}'
-                let ret = "<3"
-            else
-                if nline =~ '\\subsection{.*}'
-                    let ret = "<4"
-                endif
-            endif
+    " Fold preamble
+    if exists('g:LatexBox_fold_preamble')
+        if line =~ '\s*\\documentclass'
+            return ">1"
+        endif
+        if line =~ '\s*\\begin{document}'
+            return "<1"
         endif
     endif
 
-    echoerr ret
+    " Fold parts and sections
+    let level = 1
+    for part in g:LatexBox_fold_parts
+        if line  =~ '^\s*\\' . part . '\*\?{'
+            return ">" . level
+        endif
+        let level += 1
+    endfor
 
-    if ret == -1
-        return -1
-    else
-        let ret = "="
-    endif
-
-    " If the line is a new section, start a fold at the good level
-    if line =~ '\\part{.*}'
-        let ret = ">1"
-    else
-        if line =~ '\\chapter{.*}'
-            let ret = ">2"
-        else
-            if line =~ '\\section{.*}'
-                let ret = ">3"
-            else
-                if line =~ '\\subsection{.*}'
-                    let ret = ">4"
-                endif
-            endif
+    " Fold environments
+    if exists('g:LatexBox_fold_envs')
+        if line =~ '\\begin{.*}'
+            return "a1"
+        endif
+        if line =~ '\\end{.*}'
+            return "s1"
         endif
     endif
 
-    return ret
+    return "="
 endfunction
 
+" {{{1 LatexBox_FoldText
+function! LatexBox_FoldText(lnum)
+    let line = getline(a:lnum)
+
+    " Define pretext
+    let pretext = '    '
+    if v:foldlevel == 1
+        let pretext = '>   '
+    elseif v:foldlevel == 2
+        let pretext = '->  '
+    elseif v:foldlevel == 3
+        let pretext = '--> '
+    elseif v:foldlevel >= 4
+        let pretext = printf('--%i ',v:foldlevel)
+    endif
+
+    " Preamble
+    if line =~ '\s*\\documentclass'
+        return pretext . "Preamble"
+    endif
+
+    " Parts and sections
+    if line =~ '\\\(\(sub\)*section\|part\|chapter\)'
+        return pretext .  matchstr(line,
+                    \ '^\s*\\\(\(sub\)*section\|part\|chapter\)\*\?{\zs.*\ze}')
+    endif
+
+    " Environments
+    if line =~ '\\begin'
+        let env = matchstr(line,'\\begin\*\?{\zs\w*\*\?\ze}')
+        let label = ''
+        let caption = ''
+        let i = v:foldstart
+        while i <= v:foldend
+            if getline(i) =~ '^\s*\\label'
+                let label = ' (' . matchstr(getline(i),
+                            \ '^\s*\\label{\zs.*\ze}') . ')'
+            end
+            if getline(i) =~ '^\s*\\caption'
+                let env .=  ': '
+                let caption = matchstr(getline(i),
+                            \ '^\s*\\caption\(\[.*\]\)\?{\zs.\{1,30}')
+                let caption = substitute(caption, '}\s*$', '','')
+
+            end
+            let i += 1
+        endwhile
+        return pretext . printf('%-12s', env) . caption . label
+    endif
+
+    " Not defined
+    return "Fold text not defined"
+endfunction
+
+" {{{1 Footer
 " vim:fdm=marker:ff=unix:ts=4:sw=4
