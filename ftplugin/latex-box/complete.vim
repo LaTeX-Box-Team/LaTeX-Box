@@ -10,7 +10,6 @@ function! s:SIDWrap(func)
 endfunction
 " }}}
 
-
 " Omni Completion {{{
 
 let s:completion_type = ''
@@ -96,7 +95,6 @@ function! LatexBox_Complete(findstart, base)
 	endif
 endfunction
 " }}}
-
 
 " BibTeX search {{{
 
@@ -227,7 +225,6 @@ function! LatexBox_BibComplete(regexp)
 endfunction
 " }}}
 
-
 " ExtractLabels {{{
 " Generate list of \newlabel commands in current buffer.
 "
@@ -244,39 +241,44 @@ function! s:ExtractLabels()
 		let [nln, nameend] = searchpairpos( '{', '', '}', 'W' )
 		if nln != lblline
 			let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
-			break
+			continue
 		endif
-        let curname = strpart( getline( lblline ), lblbegin, nameend - lblbegin - 1 )
+		let curname = strpart( getline( lblline ), lblbegin, nameend - lblbegin - 1 )
 
-        if 0 == search( '{\w*{', 'ce', lblline )
-            let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
-            break
-        endif
+		" Ignore cref entries (because they are duplicates)
+		if curname =~ "\@cref"
+			continue
+		endif
 
-        let numberbegin = getpos('.')[2]
-        let [nln, numberend]  = searchpairpos( '{', '', '}', 'W' )
+		if 0 == search( '{\w*{', 'ce', lblline )
+		    let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+		    continue
+		endif
+		
+		let numberbegin = getpos('.')[2]
+		let [nln, numberend]  = searchpairpos( '{', '', '}', 'W' )
 		if nln != lblline
 			let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
-			break
+			continue
 		endif
-        let curnumber = strpart( getline( lblline ), numberbegin, numberend - numberbegin - 1 )
-
-        if 0 == search( '\w*{', 'ce', lblline )
-            let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
-            break
-        endif
-
-        let pagebegin = getpos('.')[2]
-        let [nln, pageend]  = searchpairpos( '{', '', '}', 'W' )
-        if nln != lblline
+		let curnumber = strpart( getline( lblline ), numberbegin, numberend - numberbegin - 1 )
+		
+		if 0 == search( '\w*{', 'ce', lblline )
+		    let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+		    continue
+		endif
+		
+		let pagebegin = getpos('.')[2]
+		let [nln, pageend]  = searchpairpos( '{', '', '}', 'W' )
+		if nln != lblline
 			let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
-			break
+			continue
 		endif
-        let curpage = strpart( getline( lblline ), pagebegin, pageend - pagebegin - 1 )
-
-        let matches += [ [ curname, curnumber, curpage ] ]
-
-        let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
+		let curpage = strpart( getline( lblline ), pagebegin, pageend - pagebegin - 1 )
+		
+		let matches += [ [ curname, curnumber, curpage ] ]
+		
+		let [lblline, lblbegin] = searchpos( '\\newlabel{', 'ecW' )
 	endwhile
 
 	return matches
@@ -298,7 +300,7 @@ function! s:ExtractInputs()
 		let [nln, inend] = searchpairpos( '{', '', '}', 'W' )
 		if nln != inline
 			let [inline, inbegin] = searchpos( '\\@input{', 'ecW' )
-			break
+			continue
 		endif
 		let matches += [ strpart( getline( inline ), inbegin, inend - inbegin - 1 ) ]
 
@@ -382,7 +384,7 @@ function! s:CompleteLabels(regex, ...)
 
 	let suggestions = []
 	for m in matches
-		let entry = {'word': m[0], 'menu': '(' . m[1] . ') [p.' . m[2] . ']'}
+		let entry = {'word': m[0], 'menu': printf("%7s [p. %s]", '('.m[1].')', m[2])}
 		if g:LatexBox_completion_close_braces && !s:NextCharsMatch('^\s*[,}]')
 			" add trailing '}'
 			let entry = copy(entry)
@@ -395,7 +397,6 @@ function! s:CompleteLabels(regex, ...)
 	return suggestions
 endfunction
 " }}}
-
 
 " Close Current Environment {{{
 function! s:CloseCurEnv()
@@ -421,7 +422,6 @@ function! s:CloseCurEnv()
 	endif
 	return ''
 endfunction
-
 " }}}
 
 " Wrap Selection {{{
@@ -496,7 +496,6 @@ function! s:ChangeEnvPrompt()
 		let line = strpart(line, 0, cnum - 1) . l:begin . strpart(line, cnum + len(env) + 7)
 		call setline(lnum, line)
 	endif
-
 endfunction
 
 function! s:GetEnvironmentList(lead, cmdline, pos)
@@ -519,11 +518,11 @@ endfunction
 " }}}
 
 " Mappings {{{
-imap <silent> <Plug>LatexCloseCurEnv		<C-R>=<SID>CloseCurEnv()<CR>
-vmap <silent> <Plug>LatexWrapSelection		:<c-u>call <SID>WrapSelection('')<CR>i
-vmap <silent> <Plug>LatexEnvWrapSelection	:<c-u>call <SID>PromptEnvWrapSelection()<CR>
+imap <silent> <Plug>LatexCloseCurEnv			<C-R>=<SID>CloseCurEnv()<CR>
+vmap <silent> <Plug>LatexWrapSelection			:<c-u>call <SID>WrapSelection('')<CR>i
+vmap <silent> <Plug>LatexEnvWrapSelection		:<c-u>call <SID>PromptEnvWrapSelection()<CR>
 vmap <silent> <Plug>LatexEnvWrapFmtSelection	:<c-u>call <SID>PromptEnvWrapSelection(1)<CR>
-nmap <silent> <Plug>LatexChangeEnv			:call <SID>ChangeEnvPrompt()<CR>
+nmap <silent> <Plug>LatexChangeEnv				:call <SID>ChangeEnvPrompt()<CR>
 " }}}
 
 " vim:fdm=marker:ff=unix:noet:ts=4:sw=4
