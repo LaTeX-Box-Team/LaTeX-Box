@@ -262,6 +262,9 @@ function! LatexBox_LatexErrors(jump, ...)
 	else
 		execute 'cgetfile ' . fnameescape(log)
 	endif
+	ccl
+	cw
+	redraw
 endfunction
 " }}}
 

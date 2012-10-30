@@ -23,6 +23,7 @@ if !exists('b:LatexBox_loaded')
 	execute 'source ' . s:FNameEscape(prefix . 'latexmk.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'folding.vim')
 	" added by AH to add main.tex file finder
+	execute 'source ' . s:FNameEscape(prefix . 'efm.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'findmain.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'mappings.vim')
 

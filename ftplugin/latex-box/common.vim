@@ -1,10 +1,5 @@
 " LaTeX Box common functions
 
-" Error Format {{{
-" This assumes we're using the -file-line-error with [pdf]latex.
-setlocal efm=%E%f:%l:%m,%-Cl.%l\ %m,%-G
-" }}}
-
 " Vim Windows {{{
 
 " width of vertical splits

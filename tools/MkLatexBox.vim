@@ -4,6 +4,7 @@ finish
 ftplugin/tex_LatexBox.vim
 ftplugin/latex-box/common.vim
 ftplugin/latex-box/complete.vim
+ftplugin/latex-box/efm.vim
 ftplugin/latex-box/findman.vim
 ftplugin/latex-box/folding.vim
 ftplugin/latex-box/latexmk.vim
