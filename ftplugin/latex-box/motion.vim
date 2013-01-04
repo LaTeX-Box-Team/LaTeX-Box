@@ -420,7 +420,7 @@ function! LatexBox_TOC()
 	endfor
 	call append('$', ["", "<Esc>/q: close", "<Space>: jump", "<Enter>: jump and close"])
 
-	0delete
+	0delete _
 
 	" syntax
 	syntax match helpText /^<.*/
@@ -479,6 +479,17 @@ function! s:FindClosestSection(toc, fileindices)
 	return a:fileindices[file][imin]
 endfunction
 
+function! s:EscapeTitle(titlestr)
+	" Credit goes to Marcin Szamotulski for the following fix. It allows to match through
+	" commands added by TeX.
+	let titlestr = substitute(a:titlestr, '\\\w*\>\s*\%({[^}]*}\)\?', '.*', 'g')
+
+	let titlestr = escape(titlestr, '\')
+	let titlestr = substitute(titlestr, ' ', '\\_\\s\\+', 'g')
+
+	return titlestr
+endfunction
+
 function! s:TOCActivate(close)
 	let n = getpos('.')[1] - 1
 
@@ -488,6 +499,21 @@ function! s:TOCActivate(close)
 
 	let entry = b:toc[n]
 
+	let titlestr = s:EscapeTitle(entry['text'])
+
+	" Search for duplicates
+	" 
+	let i=0
+	let entry_hash = entry['level'].titlestr
+	let duplicates = 0
+	while i<n
+		let i_entry = b:toc[n]
+		let i_hash = b:toc[i]['level'].s:EscapeTitle(b:toc[i]['text'])
+		if i_hash == entry_hash
+			let duplicates += 1
+		endif
+		let i += 1
+	endwhile
 	let toc_bnr = bufnr('%')
 	let toc_wnr = winnr()
 
@@ -501,14 +527,13 @@ function! s:TOCActivate(close)
 
 	execute 'buffer! ' . bnr
 
-	let titlestr = entry['text']
 
-	" Credit goes to Marcin Szamotulski for the following fix. It allows to match through
-	" commands added by TeX.
-	let titlestr = substitute(titlestr, '\\\w*\>\s*\%({[^}]*}\)\?', '.*', 'g')
-
-	let titlestr = escape(titlestr, '\')
-	let titlestr = substitute(titlestr, ' ', '\\_\\s\\+', 'g')
+	" skip duplicates
+	while duplicates > 0
+		if search('\\' . entry['level'] . '\_\s*{' . titlestr . '}', 'ws')
+			let duplicates -= 1
+		endif
+	endwhile
 
 	if search('\\' . entry['level'] . '\_\s*{' . titlestr . '}', 'ws')
 		normal zt
