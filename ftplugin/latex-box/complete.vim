@@ -109,6 +109,9 @@ function! LatexBox_Complete(findstart, base)
 			while pos > 0 && line[pos - 1] !~ '{\|,'
 				let pos -= 1
 			endwhile
+		elseif s:LatexBox_complete_inlineMath_or_not()
+			let s:completion_type = 'inlineMath'
+			let pos = s:eq_pos
 		else
 			let s:completion_type = 'command'
 			if line[pos - 1] == '\'
@@ -145,7 +148,7 @@ function! LatexBox_Complete(findstart, base)
 			endif
 		elseif s:completion_type == 'command'
 			" suggest known commands
-			for entry in g:LatexBox_completion_commands
+			for entry in s:LatexBox_completion_commands
 				if entry.word =~ '^' . escape(a:base, '\')
 					" do not display trailing '{'
 					if entry.word =~ '{'
@@ -159,6 +162,8 @@ function! LatexBox_Complete(findstart, base)
 		elseif s:completion_type == 'bib'
 			" suggest BibTeX entries
 			let suggestions = LatexBox_BibComplete(a:base)
+		elseif s:completion_type == 'inlineMath'
+			let suggestions = s:LatexBox_inlineMath_completion(a:base)
 		endif
 		if !has('gui_running')
 			redraw!
@@ -423,6 +428,7 @@ function! s:CompleteLabels(regex, ...)
 	endif
 
 	let labels = s:GetLabelCache(file)
+<<<<<<< HEAD
 
 	let matches = filter( copy(labels), 'match(v:val[0], "' . a:regex . '") != -1' )
 	if empty(matches)
@@ -450,6 +456,175 @@ function! s:CompleteLabels(regex, ...)
 		endif
 		call add(suggestions, entry)
 	endfor
+
+	return suggestions
+endfunction
+" }}}
+
+" Complete Inline Math Or Not {{{
+" Completion suggestions are found in single line $ ... $ or \( ... \)
+
+" return 1
+" if there is an single $ in the current line
+" or there is open env  \(, \[, or \begin{eq-env} on the current line of lines above (can be cross lines)
+function! s:LatexBox_complete_inlineMath_or_not()
+    " trigger: $, \(, \[, or eq-env [part-of-eq] Ctrl-x Ctrl-o 
+
+	let eq_env_pats = '\%(equation\|gather\|multiline\|align\|flalign\|alignat\|eqnarray\)'
+
+    " eq_env_pats with \[ \( , but no $
+    let begin_eq_pats = '\%(' . 
+                \ '\\begin\s*{' . eq_env_pats . '\*\?}' .
+                \ '\|' . '\\\[' . '\|' . '\\(' . 
+                \ '\)'
+
+    " add env-name that can't occur in an eq env
+    let doc_structure_pats = '\%(' .
+                \ '\\begin\s*{document}\|' .
+                \ '\\\%(chapter\|section\|subsection\|subsubsection\)\*\?\s*{' .
+                \ '\)'
+    let stop_search_eq_pats = '\%(' . 
+                \ doc_structure_pats . '\|' . 
+                \ '\\end\s*{\(' . eq_env_pats . '\)\*\?}' .
+                \ '\|' . '\\\]' . '\|' . '\\)' . 
+                \ '\)'
+
+	let notcomment = '\%(\%(\\\@<!\%(\\\\\)*\)\@<=%.*\)\@<!'
+
+	let lnum_saved = line('.')
+    let cnum_saved = col('.') -1
+
+    let lnum = line('.')
+
+    " check $, \(, \[ on the current line, return suggestions ended with $, \), or \]
+    " !! check $, on the current line only 
+    let line = getline(lnum)
+    if line =~ notcomment . '\%('.'\%(\$\)'.'\|'.'\%(\\(\)'.'\|'.'\%(\\\[\)'.'\)' . '\s*'
+        let [pos, which_match] = searchpos('\(\$\)\|\(\\(\)\|\(\\\[\)' . '\s*', 'cbWp' , lnum)[1:]
+        " which_match: 2, 3, 4 
+        echomsg "which_match:" . which_match
+        let s:eq_dollar_parenthesis_bracket_empty = ['$', '\)', '\]'][which_match-2]
+        let s:eq_pos = pos + [1, 2, 2][which_match-2] -1
+
+        return 1
+    endif
+    
+    " search backward, looking for begin_eq_pats
+    while lnum > 0
+        let line = getline(lnum)
+        if line =~ notcomment . stop_search_eq_pats
+            echomsg "stop_search_eq_pats: line " . lnum
+            return 0
+        elseif line =~ notcomment . begin_eq_pats
+            echomsg "begin_eq_pats: line " . lnum
+            call cursor(lnum_saved, cnum_saved)
+            let s:eq_pos = searchpos('\s\|\t', 'cbW', lnum_saved)[1]
+            let s:eq_dollar_parenthesis_bracket_empty = ''
+            return 1
+            " TODO ? : check end of eq env, only complete in closed eq-env
+            " Conflict: In current version, we can \end{eq-env} no longer complete
+            " eq-env with omni
+        endif
+
+        let lnum -= 1
+    endwhile
+
+endfunction
+
+" Complete inline euqation{{{ 
+function! s:LatexBox_inlineMath_completion(regex, ...)
+
+	if a:0 == 0
+		let file = LatexBox_GetMainTexFile()
+	else
+		let file = a:1
+	endif
+
+	if empty(glob(file, 1))
+		return ''
+	endif
+
+	let inlinePattern1 = '\$\s*\(' . escape(substitute(a:regex, '^\s\+', '', ""), '\.*^') . '[^$]*\)\s*\$'
+	let inlinePattern2 = '\\(\s*\(' . escape(substitute(a:regex, '^\s\+', '', ""), '\.*^') . '.*\)\s*\\)'
+ 	
+	let suggestions = []
+    " TODO: make it search backward for just a certain num of lines ?
+    "       complete some {{math}} that appears for the first time in an eq env ?
+	let lineNum = 0
+    let in_eq_env_or_not = 0
+	for line in readfile(file)
+		let lineNum = lineNum + 1
+
+		let suggestions += s:mathlist(line,inlinePattern1 , lineNum) +  s:mathlist( line,inlinePattern2, lineNum)
+
+ 		" search for included files
+ 		let included_file = matchstr(line, '^\\@input{\zs[^}]*\ze}')
+ 		if included_file != ''
+ 			let included_file = LatexBox_kpsewhich(included_file)
+ 			call extend(suggestions, s:LatexBox_inlineMath_completion(a:regex, included_file))
+ 		endif
+ 	endfor
+
+"	return filter(copy(suggestions), 'index(suggestions, v:val, v:key+1)==-1') 
+	return suggestions
+endfunction
+" }}}
+
+
+" Suggestion List for inlineMath Completion {{{
+" Search for  $ ... $ and \( ... \) in each line 
+function s:mathlist(line,inlinePattern1, lineNum )
+	let col_start = 0
+	let suggestions = []
+	while 1
+		let matches = matchlist(a:line, a:inlinePattern1, col_start)
+		if !empty(matches)
+
+			" show eq line number
+			let entry = {'word': matches[1], 'menu': '[' . a:lineNum . ' line]'}
+            
+            if  s:eq_dollar_parenthesis_bracket_empty != ''
+                let entry = copy(entry)
+                let entry.abbr = entry.word
+                let entry.word = entry.word . s:eq_dollar_parenthesis_bracket_empty
+            endif
+			call add(suggestions, entry)
+
+			" update col_start
+			let col_start = matchend(a:line, a:inlinePattern1, col_start)
+		else
+			break
+		endif
+	endwhile
+=======
+
+	let matches = filter( copy(labels), 'match(v:val[0], "' . a:regex . '") != -1' )
+	if empty(matches)
+		" also try to match label and number
+		let regex_split = split(a:regex)
+		if len(regex_split) > 1
+			let base = regex_split[0]
+			let number = escape(join(regex_split[1:], ' '), '.')
+			let matches = filter( copy(labels), 'match(v:val[0], "' . base . '") != -1 && match(v:val[1], "' . number . '") != -1' )
+		endif
+	endif
+	if empty(matches)
+		" also try to match number
+		let matches = filter( copy(labels), 'match(v:val[1], "' . a:regex . '") != -1' )
+	endif
+
+	let suggestions = []
+	for m in matches
+		let entry = {'word': m[0], 'menu': printf("%7s [p. %s]", '('.m[1].')', m[2])}
+		if g:LatexBox_completion_close_braces && !s:NextCharsMatch('^\s*[,}]')
+			" add trailing '}'
+			let entry = copy(entry)
+			let entry.abbr = entry.word
+			let entry.word = entry.word . '}'
+		endif
+		call add(suggestions, entry)
+	endfor
+>>>>>>> FETCH_HEAD
 
 	return suggestions
 endfunction
