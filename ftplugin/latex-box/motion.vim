@@ -3,9 +3,11 @@
 " HasSyntax {{{
 " s:HasSyntax(syntaxName, [line], [col])
 function! s:HasSyntax(syntaxName, ...)
-	let line	= a:0 >= 1 ? a:1 : line('.')
-	let col		= a:0 >= 2 ? a:2 : col('.')
-	return index(map(synstack(line, col), 'synIDattr(v:val, "name") == "' . a:syntaxName . '"'), 1) >= 0
+	let line = a:0 >= 1 ? a:1 : line('.')
+	let col  = a:0 >= 2 ? a:2 : col('.')
+	return index(map(synstack(line, col),
+				\ 'synIDattr(v:val, "name") == "' . a:syntaxName . '"'),
+				\ 1) >= 0
 endfunction
 " }}}
 
@@ -41,85 +43,111 @@ function! s:SearchAndSkipComments(pat, ...)
 endfunction
 " }}}
 
-" begin/end pairs {{{
-"
-" s:JumpToMatch(mode, [backward])
-" - search backwards if backward is given and nonzero
-" - search forward otherwise
-"
-function! s:JumpToMatch(mode, ...)
+" Finding Matching Pair {{{
+function! s:FindMatchingPair(mode)
 
-	if a:0 >= 1
-		let backward = a:1
-	else
-		let backward = 0
-	endif
-
-	let sflags = backward ? 'cbW' : 'cW'
-
-	" selection is lost upon function call, reselect
-	if a:mode == 'v'
+	if a:mode =~ 'h\|i'
+		2match none
+	elseif a:mode == 'v'
 		normal! gv
 	endif
 
+	if LatexBox_InComment() | return | endif
+
 	" open/close pairs (dollars signs are treated apart)
-	let open_pats  = ['{', '\[', '(', '\\begin\>', '\\left\>', '\\lceil\>', '\\lgroup\>', '\\lfloor', '\\langle']
-	let close_pats = ['}', '\]', ')', '\\end\>', '\\right\>', '\\rceil', '\\rgroup\>', '\\rfloor', '\\rangle']
-	let dollar_pat = '\\\@<!\$'
+	let open_pats  = ['\\{','{','\\(','(','\\\[','\[','\\begin\s*{.\{-}}', '\\left\s*\%([^\\]\|\\.\|\\\a*\)']
+	let close_pats = ['\\}','}','\\)',')','\\\]','\]','\\end\s*{.\{-}}',  '\\right\s*\%([^\\]\|\\.\|\\\a*\)']
+	let dollar_pat = '\$'
+	let notbslash = '\%(\\\@<!\%(\\\\\)*\)\@<='
+	let notcomment = '\%(\%(\\\@<!\%(\\\\\)*\)\@<=%.*\)\@<!'
+	let anymatch =  '\(' . join(open_pats + close_pats, '\|') . '\|' . dollar_pat . '\)'
 
-	let saved_pos = getpos('.')
+	let lnum = line('.')
+	let cnum = searchpos('\A', 'cbnW', lnum)[1]
+	" if the previous char is a backslash
+	if strpart(getline(lnum), 0,  cnum-1) !~ notbslash . '$' | let cnum = cnum-1 | endif
+	let delim = matchstr(getline(lnum), '\C^'. anymatch , cnum - 1)
 
-	" move to the left until not on alphabetic characters
-	call search('\A', 'cbW', line('.'))
-
-	" go to next opening/closing pattern on same line
-	if !s:SearchAndSkipComments(
-				\	'\m\C\%(' . join(open_pats + close_pats + [dollar_pat], '\|') . '\)',
-				\	sflags, line('.'))
-		" abort if no match or if match is inside a comment
-		call setpos('.', saved_pos)
-		return
+	if empty(delim) || strlen(delim)+cnum-1< col('.')
+		if a:mode =~ 'n\|v\|o'
+			" if not found, search forward
+			let cnum = match(getline(lnum), '\C'. anymatch , col('.') - 1) + 1
+			if cnum == 0 | return | endif
+			call cursor(lnum, cnum)
+			let delim = matchstr(getline(lnum), '\C^'. anymatch , cnum - 1)
+		elseif a:mode =~ 'i'
+			" if not found, move one char bacward and search
+			let cnum = searchpos('\A', 'bnW', lnum)[1]
+			" if the previous char is a backslash
+			if strpart(getline(lnum), 0,  cnum-1) !~ notbslash . '$' | let cnum = cnum-1 | endif
+			let delim = matchstr(getline(lnum), '\C^'. anymatch , cnum - 1)
+			if empty(delim) || strlen(delim)+cnum< col('.') | return | endif
+		elseif a:mode =~ 'h'
+			return
+		endif
 	endif
 
-	let rest_of_line = strpart(getline('.'), col('.') - 1)
+	if delim =~ '^\$'
 
-	" match for '$' pairs
-	if rest_of_line =~ '^\$'
-
+		" match $-pairs
 		" check if next character is in inline math
-		let [lnum, cnum] = searchpos('.', 'nW')
-		if lnum && s:HasSyntax('texMathZoneX', lnum, cnum)
-			call s:SearchAndSkipComments(dollar_pat, 'W')
+		let [lnum0, cnum0] = searchpos('.', 'nW')
+		if lnum0 && s:HasSyntax('texMathZoneX', lnum0, cnum0)
+			let [lnum2, cnum2] = searchpos(notcomment . notbslash. dollar_pat, 'nW', line('w$')*(a:mode =~ 'h\|i') , 200)
 		else
-			call s:SearchAndSkipComments(dollar_pat, 'bW')
+			let [lnum2, cnum2] = searchpos('\%(\%'. lnum . 'l\%' . cnum . 'c\)\@!'. notcomment . notbslash . dollar_pat, 'bnW', line('w0')*(a:mode =~ 'h\|i') , 200)
+		endif
+
+		if a:mode =~ 'h\|i'
+			execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c\$' . '\|\%' . lnum2 . 'l\%' . cnum2 . 'c\$\)/'
+		elseif a:mode =~ 'n\|v\|o'
+			call cursor(lnum2,cnum2)
 		endif
 
 	else
-
 		" match other pairs
 		for i in range(len(open_pats))
-			let open_pat = open_pats[i]
-			let close_pat = close_pats[i]
+			let open_pat = notbslash . open_pats[i]
+			let close_pat = notbslash . close_pats[i]
 
-			if rest_of_line =~ '^\C\%(' . open_pat . '\)'
-				" if on opening pattern, go to closing pattern
-				call searchpair('\C' . open_pat, '', '\C' . close_pat, 'W', 'LatexBox_InComment()')
+			if delim =~# '^' . open_pat
+				" if on opening pattern, search for closing pattern
+				let [lnum2, cnum2] = searchpairpos('\C' . open_pat, '', '\C' . close_pat, 'nW', 'LatexBox_InComment()', line('w$')*(a:mode =~ 'h\|i') , 200)
+				if a:mode =~ 'h\|i'
+					execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c' . open_pats[i] . '\|\%' . lnum2 . 'l\%' . cnum2 . 'c' . close_pats[i] . '\)/'
+				elseif a:mode =~ 'n\|v\|o'
+					call cursor(lnum2,cnum2)
+					if strlen(close_pat)>1 && a:mode =~ 'o'
+						call cursor(lnum2, matchend(getline('.'), '\C' . close_pat, col('.')-1))
+					endif
+				endif
 				break
-			elseif rest_of_line =~ '^\C\%(' . close_pat . '\)'
-				" if on closing pattern, go to opening pattern
-				call searchpair('\C' . open_pat, '', '\C' . close_pat, 'bW', 'LatexBox_InComment()')
+			elseif delim =~# '^' . close_pat
+				" if on closing pattern, search for opening pattern
+				let [lnum2, cnum2] =  searchpairpos('\C' . open_pat, '', '\C\%(\%'. lnum . 'l\%' . cnum . 'c\)\@!' . close_pat, 'bnW', 'LatexBox_InComment()', line('w0')*(a:mode =~ 'h\|i') , 200)
+				if a:mode =~ 'h\|i'
+					execute '2match MatchParen /\%(\%' . lnum2 . 'l\%' . cnum2 . 'c' . open_pats[i] . '\|\%' . lnum . 'l\%' . cnum . 'c' . close_pats[i] . '\)/'
+				elseif a:mode =~ 'n\|v\|o'
+					call cursor(lnum2,cnum2)
+				endif
 				break
 			endif
-
 		endfor
-	endif
 
+	endif
 endfunction
 
-nnoremap <silent> <Plug>LatexBox_JumpToMatch		:call <SID>JumpToMatch('n')<CR>
-vnoremap <silent> <Plug>LatexBox_JumpToMatch		:<C-U>call <SID>JumpToMatch('v')<CR>
-nnoremap <silent> <Plug>LatexBox_BackJumpToMatch	:call <SID>JumpToMatch('n', 1)<CR>
-vnoremap <silent> <Plug>LatexBox_BackJumpToMatch	:<C-U>call <SID>JumpToMatch('v', 1)<CR>
+" disable matchparen autocommands
+augroup LatexBox_HighlightPairs
+	autocmd BufEnter * if !exists("g:loaded_matchparen") || !g:loaded_matchparen | runtime plugin/matchparen.vim | endif
+	autocmd BufEnter *.tex 3match none | unlet! g:loaded_matchparen | au! matchparen
+	autocmd! CursorMoved *.tex call s:FindMatchingPair('h')
+	autocmd! CursorMovedI *.tex call s:FindMatchingPair('i')
+augroup END
+
+nnoremap <silent> <Plug>LatexBox_JumpToMatch		:call <SID>FindMatchingPair('n')<CR>
+vnoremap <silent> <Plug>LatexBox_JumpToMatch		:call <SID>FindMatchingPair('v')<CR>
+onoremap <silent> <Plug>LatexBox_JumpToMatch		v:call <SID>FindMatchingPair('o')<CR>
 " }}}
 
 " select inline math {{{
@@ -154,8 +182,10 @@ function! s:SelectInlineMath(seltype)
 	endif
 endfunction
 
-vnoremap <silent> <Plug>LatexBox_SelectInlineMathInner :<C-U>call <SID>SelectInlineMath('inner')<CR>
-vnoremap <silent> <Plug>LatexBox_SelectInlineMathOuter :<C-U>call <SID>SelectInlineMath('outer')<CR>
+vnoremap <silent> <Plug>LatexBox_SelectInlineMathInner
+			\ :<C-U>call <SID>SelectInlineMath('inner')<CR>
+vnoremap <silent> <Plug>LatexBox_SelectInlineMathOuter
+			\ :<C-U>call <SID>SelectInlineMath('outer')<CR>
 " }}}
 
 " select current environment {{{
@@ -214,76 +244,112 @@ endfunction
 
 " Table of Contents {{{
 
-"Special UTF-8 conversion
+" Special UTF-8 conversion
 function! s:ConvertBack(line)
 
-        let line = a:line
+	let line = a:line
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'a}", 'á', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`a}", 'à', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^a}", 'à', 'g')
+	if !exists('g:LatexBox_plaintext_toc')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'a}", 'á', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`a}", 'à', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^a}", 'à', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨a}", 'ä', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"a}", 'ä', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'e}", 'é', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`e}", 'è', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^e}", 'ê', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'e}", 'é', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`e}", 'è', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^e}", 'ê', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨e}", 'ë', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"e}", 'ë', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'i}", 'í', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`i}", 'î', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^i}", 'ì', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'i}", 'í', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`i}", 'î', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^i}", 'ì', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨i}", 'ï', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"i}", 'ï', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'o}", 'ó', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`o}", 'ò', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^o}", 'ô', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'o}", 'ó', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`o}", 'ò', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^o}", 'ô', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨o}", 'ö', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"o}", 'ö', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'u}", 'ú', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`u}", 'ù', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^u}", 'û', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'u}", 'ú', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`u}", 'ù', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^u}", 'û', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨u}", 'ü', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"u}", 'ü', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'A}", 'Á', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`A}", 'À', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^A}", 'À', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'A}", 'Á', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`A}", 'À', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^A}", 'À', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨A}", 'Ä', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"A}", 'Ä', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'E}", 'É', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`E}", 'È', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^E}", 'Ê', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'E}", 'É', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`E}", 'È', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^E}", 'Ê', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨E}", 'Ë', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"E}", 'Ë', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'I}", 'Í', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`I}", 'Î', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^I}", 'Ì', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'I}", 'Í', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`I}", 'Î', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^I}", 'Ì', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨I}", 'Ï', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"I}", 'Ï', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'O}", 'Ó', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`O}", 'Ò', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^O}", 'Ô', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'O}", 'Ó', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`O}", 'Ò', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^O}", 'Ô', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨O}", 'Ö', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"O}", 'Ö', 'g')
 
-        let line = substitute(line, "\\\\IeC\s*{\\\\'U}", 'Ú', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\`U}", 'Ù', 'g')
-        let line = substitute(line, "\\\\IeC\s*{\\\\^U}", 'Û', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\'U}", 'Ú', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\`U}", 'Ù', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\^U}", 'Û', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\¨U}", 'Ü', 'g')
+		let line = substitute(line, "\\\\IeC\s*{\\\\\"U}", 'Ü', 'g')
 
-        return line
+	else
+		" substitute stuff like '\IeC{\"u}' (utf-8 umlauts in section heading)
+		" to plain 'u'
+		let line = substitute(line, "\\\\IeC\s*{\\\\.\\(.\\)}", '\1', 'g')
+	endif
+	return line
 
 endfunction
 
-function! s:ReadTOC(auxfile)
+function! s:ReadTOC(auxfile, ...)
 
-	let toc = []
-
+	let texfile = fnamemodify(substitute(a:auxfile, '\.aux$', '.tex', ''), ':p')
 	let prefix = fnamemodify(a:auxfile, ':p:h')
+
+	if a:0 != 2
+		let toc = []
+		let fileindices = { texfile : [] }
+	else
+		let toc = a:1
+		let fileindices = a:2
+		let fileindices[ texfile ] = []
+	endif
+
 
 	for line in readfile(a:auxfile)
 
 		let included = matchstr(line, '^\\@input{\zs[^}]*\ze}')
-		
+
 		if included != ''
-			call extend(toc, s:ReadTOC(prefix . '/' . included))
+			" append the input TOX to `toc` and `fileindices`
+			call s:ReadTOC(prefix . '/' . included, toc, fileindices)
 			continue
 		endif
 
-		" Parse lines like:
+		" Parse statements like:
 		" \@writefile{toc}{\contentsline {section}{\numberline {secnum}Section Title}{pagenumber}}
 		" \@writefile{toc}{\contentsline {section}{\tocsection {}{1}{Section Title}}{pagenumber}}
 		" \@writefile{toc}{\contentsline {section}{\numberline {secnum}Section Title}{pagenumber}{otherstuff}}
 
-		let line = matchstr(line, '^\\@writefile{toc}{\\contentsline\s*\zs.*\ze}\s*$')
+		let line = matchstr(line, '\\@writefile{toc}{\\contentsline\s*\zs.*\ze}\s*$')
 		if empty(line)
 			continue
 		endif
@@ -323,11 +389,11 @@ function! s:ReadTOC(auxfile)
 		let text = substitute(text, '^{\+\|}\+$', '', 'g')
 
 		" add TOC entry
-		call add(toc, {'file': bufname('%'),
-					\ 'level': level, 'number': secnum, 'text': text, 'page': page})
+		call add(fileindices[texfile], len(toc))
+		call add(toc, {'file': texfile, 'level': level, 'number': secnum, 'text': text, 'page': page})
 	endfor
 
-	return toc
+	return [toc, fileindices]
 
 endfunction
 
@@ -341,21 +407,31 @@ function! LatexBox_TOC()
 	endif
 
 	" read TOC
-	let toc = s:ReadTOC(LatexBox_GetAuxFile())
+	let [toc, fileindices] = s:ReadTOC(LatexBox_GetAuxFile())
 	let calling_buf = bufnr('%')
 
 	" find closest section in current buffer
-	let closest_index = s:FindClosestSection(toc)
+	let closest_index = s:FindClosestSection(toc,fileindices)
 
-	execute g:LatexBox_split_width . 'vnew LaTeX\ TOC'
-	setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile nowrap cursorline nonumber
+	" create TOC window and set local settings
+	execute g:LatexBox_split_side g:LatexBox_split_width . 'vnew LaTeX\ TOC'
+	setlocal buftype=nofile
+				\ bufhidden=wipe
+				\ nobuflisted
+				\ noswapfile
+				\ nowrap
+				\ cursorline
+				\ nonumber
+				\ nolist
+				\ tabstop=8
 
+	" add TOC entries
 	for entry in toc
 		call append('$', entry['number'] . "\t" . entry['text'])
 	endfor
-	call append('$', ["", "<Esc>/q: close", "<Space>: jump", "<Enter>: jump and close"])
-
-	0delete
+	call append('$', ["", "<Esc>/q: close",
+				\ "<Space>: jump", "<Enter>: jump and close"])
+	0delete _
 
 	" syntax
 	syntax match helpText /^<.*/
@@ -368,15 +444,21 @@ function! LatexBox_TOC()
 	highlight link mainSecLine	Title
 	highlight link ssubSecLine	Comment
 
+	" mappings
 	map <buffer> <silent> q			:bwipeout<CR>
 	map <buffer> <silent> <Esc>		:bwipeout<CR>
 	map <buffer> <silent> <Space> 	:call <SID>TOCActivate(0)<CR>
 	map <buffer> <silent> <CR> 		:call <SID>TOCActivate(1)<CR>
-    nnoremap <silent> <buffer> <leftrelease> :call <SID>TOCActivate(0)<cr>
-    nnoremap <silent> <buffer> <2-leftmouse> :call <SID>TOCActivate(1)<cr>
+	nnoremap <silent> <buffer> <leftrelease> :call <SID>TOCActivate(0)<cr>
+	nnoremap <silent> <buffer> <2-leftmouse> :call <SID>TOCActivate(1)<cr>
 	nnoremap <buffer> <silent> G	G4k
+	map <buffer> <silent> OA k
+	map <buffer> <silent> OB j
+	map <buffer> <silent> OC l
+	map <buffer> <silent> OD h
 
-	setlocal nomodifiable tabstop=8
+	" lock buffer
+	setlocal nomodifiable
 
 	let b:toc = toc
 	let b:calling_win = bufwinnr(calling_buf)
@@ -388,12 +470,18 @@ endfunction
 
 " Binary search for the closest section
 " return the index of the TOC entry
-function! s:FindClosestSection(toc)
-	let imax = len(a:toc)
+function! s:FindClosestSection(toc, fileindices)
+	let file = expand('%:p')
+	if !has_key(a:fileindices, file)
+		echoe 'Current file is not included in main tex file ' . LatexBox_GetMainTexFile() . '.'
+	endif
+
+	let imax = len(a:fileindices[file])
 	let imin = 0
 	while imin < imax - 1
 		let i = (imax + imin) / 2
-		let entry = a:toc[i]
+		let tocindex = a:fileindices[file][i]
+		let entry = a:toc[tocindex]
 		let titlestr = entry['text']
 		let titlestr = escape(titlestr, '\')
 		let titlestr = substitute(titlestr, ' ', '\\_\\s\\+', 'g')
@@ -405,7 +493,18 @@ function! s:FindClosestSection(toc)
 		endif
 	endwhile
 
-	return imin
+	return a:fileindices[file][imin]
+endfunction
+
+function! s:EscapeTitle(titlestr)
+	" Credit goes to Marcin Szamotulski for the following fix.  It allows to
+	" match through commands added by TeX.
+	let titlestr = substitute(a:titlestr, '\\\w*\>\s*\%({[^}]*}\)\?', '.*', 'g')
+
+	let titlestr = escape(titlestr, '\')
+	let titlestr = substitute(titlestr, ' ', '\\_\\s\\+', 'g')
+
+	return titlestr
 endfunction
 
 function! s:TOCActivate(close)
@@ -417,26 +516,41 @@ function! s:TOCActivate(close)
 
 	let entry = b:toc[n]
 
+	let titlestr = s:EscapeTitle(entry['text'])
+
+	" Search for duplicates
+	"
+	let i=0
+	let entry_hash = entry['level'].titlestr
+	let duplicates = 0
+	while i<n
+		let i_entry = b:toc[n]
+		let i_hash = b:toc[i]['level'].s:EscapeTitle(b:toc[i]['text'])
+		if i_hash == entry_hash
+			let duplicates += 1
+		endif
+		let i += 1
+	endwhile
 	let toc_bnr = bufnr('%')
 	let toc_wnr = winnr()
 
 	execute b:calling_win . 'wincmd w'
 
 	let bnr = bufnr(entry['file'])
-	if bnr >= 0
-		execute 'buffer ' . bnr
-	else
-		execute 'edit ' . entry['file']
+	if bnr == -1
+		execute 'badd ' . entry['file']
+		let bnr = bufnr(entry['file'])
 	endif
 
-	let titlestr = entry['text']
+	execute 'buffer! ' . bnr
 
-	" Credit goes to Marcin Szamotulski for the following fix. It allows to match through
-	" commands added by TeX.
-	let titlestr = substitute(titlestr, '\\\w*\>\s*\%({[^}]*}\)\?', '.*', 'g')
 
-	let titlestr = escape(titlestr, '\')
-	let titlestr = substitute(titlestr, ' ', '\\_\\s\\+', 'g')
+	" skip duplicates
+	while duplicates > 0
+		if search('\\' . entry['level'] . '\_\s*{' . titlestr . '}', 'ws')
+			let duplicates -= 1
+		endif
+	endwhile
 
 	if search('\\' . entry['level'] . '\_\s*{' . titlestr . '}', 'ws')
 		normal zt
@@ -449,84 +563,5 @@ function! s:TOCActivate(close)
 	endif
 endfunction
 " }}}
-
-" Highlight Matching Pair {{{
-function! s:HighlightMatchingPair()
-
-	2match none
-
-	if LatexBox_InComment()
-		return
-	endif
-
-	let open_pats = ['\\begin\>', '\\left\>']
-	let close_pats = ['\\end\>', '\\right\>']
-	let dollar_pat = '\\\@<!\$'
-
-	let saved_pos = getpos('.')
-
-	if getline('.')[col('.') - 1] == '$'
-
-	   if strpart(getline('.'), col('.') - 2, 1) == '\'
-		   return
-	   endif
-
-		" match $-pairs
-		let lnum = line('.')
-		let cnum = col('.')
-	
-		" check if next character is in inline math
-		let [lnum2, cnum2] = searchpos('.', 'nW')
-		if lnum2 && s:HasSyntax('texMathZoneX', lnum2, cnum2)
-			call s:SearchAndSkipComments(dollar_pat, 'W')
-		else
-			call s:SearchAndSkipComments(dollar_pat, 'bW')
-		endif
-
-		execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c\$'
-					\	. '\|\%' . line('.') . 'l\%' . col('.') . 'c\$\)/'
-
-	else
-		" match other pairs
-
-		" find first non-alpha character to the left on the same line
-		let [lnum, cnum] = searchpos('\A', 'cbW', line('.'))
-
-		let delim = matchstr(getline(lnum), '^\m\(' . join(open_pats + close_pats, '\|') . '\)', cnum - 1)
-
-		if empty(delim)
-			call setpos('.', saved_pos)
-			return
-		endif
-
-		for i in range(len(open_pats))
-			let open_pat = open_pats[i]
-			let close_pat = close_pats[i]
-
-			if delim =~# '^' . open_pat
-				" if on opening pattern, go to closing pattern
-				call searchpair('\C' . open_pat, '', '\C' . close_pat, 'W', 'LatexBox_InComment()')
-				execute '2match MatchParen /\%(\%' . lnum . 'l\%' . cnum . 'c' . open_pats[i]
-							\	. '\|\%' . line('.') . 'l\%' . col('.') . 'c' . close_pats[i] . '\)/'
-				break
-			elseif delim =~# '^' . close_pat
-				" if on closing pattern, go to opening pattern
-				call searchpair('\C' . open_pat, '', '\C' . close_pat, 'bW', 'LatexBox_InComment()')
-				execute '2match MatchParen /\%(\%' . line('.') . 'l\%' . col('.') . 'c' . open_pats[i]
-							\	. '\|\%' . lnum . 'l\%' . cnum . 'c' . close_pats[i] . '\)/'
-				break
-			endif
-		endfor
-	endif
-
-	call setpos('.', saved_pos)
-endfunction
-" }}}
-
-augroup LatexBox_HighlightPairs
-  " Replace all matchparen autocommands
-  autocmd! CursorMoved *.tex call s:HighlightMatchingPair()
-  autocmd! CursorMovedi *.tex call s:HighlightMatchingPair()
-augroup END
 
 " vim:fdm=marker:ff=unix:noet:ts=4:sw=4

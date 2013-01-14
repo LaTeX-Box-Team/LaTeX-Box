@@ -21,12 +21,13 @@ if !exists('b:LatexBox_loaded')
 	execute 'source ' . s:FNameEscape(prefix . 'complete.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'motion.vim')
 	execute 'source ' . s:FNameEscape(prefix . 'latexmk.vim')
+	execute 'source ' . s:FNameEscape(prefix . 'folding.vim')
+	" added by AH to add main.tex file finder
+	execute 'source ' . s:FNameEscape(prefix . 'findmain.vim')
+	execute 'source ' . s:FNameEscape(prefix . 'mappings.vim')
 
 	let b:LatexBox_loaded = 1
 
 endif
-
-execute 'source ' . s:FNameEscape(prefix . 'mappings.vim')
-execute 'source ' . s:FNameEscape(prefix . 'indent.vim')
 
 " vim:fdm=marker:ff=unix:noet:ts=4:sw=4

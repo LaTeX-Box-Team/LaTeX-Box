@@ -66,6 +66,10 @@ function! LatexBox_GetMainTexFile()
 			" Remove everything but the filename
 			let b:main_tex_file = substitute(linecontents, '.*root\s*=\s*', "", "")
 			let b:main_tex_file = substitute(b:main_tex_file, '\s*$', "", "")
+			" Prepend current directory if this isn't an absolute path
+			if b:main_tex_file !~ '^/'
+				let b:main_tex_file = expand('%:p:h') . '/' . b:main_tex_file
+			endif
 			let b:main_tex_file = fnamemodify(b:main_tex_file, ":p")
 			if b:main_tex_file !~ '\.tex$'
 				let b:main_tex_file .= '.tex'

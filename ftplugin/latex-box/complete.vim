@@ -428,6 +428,7 @@ function! s:CompleteLabels(regex, ...)
 	endif
 
 	let labels = s:GetLabelCache(file)
+<<<<<<< HEAD
 
 	let matches = filter( copy(labels), 'match(v:val[0], "' . a:regex . '") != -1' )
 	if empty(matches)
@@ -595,11 +596,39 @@ function s:mathlist(line,inlinePattern1, lineNum )
 			break
 		endif
 	endwhile
+=======
+
+	let matches = filter( copy(labels), 'match(v:val[0], "' . a:regex . '") != -1' )
+	if empty(matches)
+		" also try to match label and number
+		let regex_split = split(a:regex)
+		if len(regex_split) > 1
+			let base = regex_split[0]
+			let number = escape(join(regex_split[1:], ' '), '.')
+			let matches = filter( copy(labels), 'match(v:val[0], "' . base . '") != -1 && match(v:val[1], "' . number . '") != -1' )
+		endif
+	endif
+	if empty(matches)
+		" also try to match number
+		let matches = filter( copy(labels), 'match(v:val[1], "' . a:regex . '") != -1' )
+	endif
+
+	let suggestions = []
+	for m in matches
+		let entry = {'word': m[0], 'menu': printf("%7s [p. %s]", '('.m[1].')', m[2])}
+		if g:LatexBox_completion_close_braces && !s:NextCharsMatch('^\s*[,}]')
+			" add trailing '}'
+			let entry = copy(entry)
+			let entry.abbr = entry.word
+			let entry.word = entry.word . '}'
+		endif
+		call add(suggestions, entry)
+	endfor
+>>>>>>> FETCH_HEAD
 
 	return suggestions
 endfunction
 " }}}
-
 
 " Close Current Environment {{{
 function! s:CloseCurEnv()

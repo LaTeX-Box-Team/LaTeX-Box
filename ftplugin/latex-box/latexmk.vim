@@ -11,6 +11,57 @@ function! s:SIDWrap(func)
 endfunction
 " }}}
 
+" Compilation {{{
+
+" g:vim_program {{{
+if !exists('g:vim_program')
+
+	if match(&shell, '/\(bash\|zsh\)$') >= 0
+		let ppid = '$PPID'
+	else
+		let ppid = '$$'
+	endif
+
+	" attempt autodetection of vim executable
+	let g:vim_program = ''
+	let tmpfile = tempname()
+	silent execute '!ps -o command= -p ' . ppid . ' > ' . tmpfile
+	for line in readfile(tmpfile)
+		let line = matchstr(line, '^\S\+\>')
+		if !empty(line) && executable(line)
+			let g:vim_program = line . ' -g'
+			break
+		endif
+	endfor
+	call delete(tmpfile)
+
+	if empty(g:vim_program)
+		if has('gui_macvim')
+			let g:vim_program = '/Applications/MacVim.app/Contents/MacOS/Vim -g'
+		else
+			let g:vim_program = v:progname
+		endif
+	endif
+endif
+" }}}
+
+if !exists('g:LatexBox_latexmk_options')
+	let g:LatexBox_latexmk_options = ''
+endif
+if !exists('g:LatexBox_output_type')
+	let g:LatexBox_output_type = 'pdf'
+endif
+if !exists('g:LatexBox_viewer')
+	let g:LatexBox_viewer = 'xdg-open'
+endif
+if !exists('g:LatexBox_autojump')
+	let g:LatexBox_autojump = 0
+endif
+if ! exists("g:LatexBox_quickfix")
+	let g:LatexBox_quickfix = 1
+endif
+" }}}
+
 
 " dictionary of latexmk PID's (basename: pid)
 let s:latexmk_running_pids = {}
@@ -23,15 +74,8 @@ endfunction
 
 " Callback {{{
 function! s:LatexmkCallback(basename, status)
-	"let pos = getpos('.')
-	if a:status
-		echomsg "latexmk exited with status " . a:status
-	else
-		echomsg "latexmk finished"
-	endif
 	call remove(s:latexmk_running_pids, a:basename)
-	call LatexBox_LatexErrors(g:LatexBox_autojump && a:status, a:basename)
-	"call setpos('.', pos)
+	call LatexBox_LatexErrors(a:status, a:basename)
 endfunction
 " }}}
 
@@ -79,7 +123,7 @@ function! LatexBox_Latexmk(force)
 				\ ' latexmk ' . l:options	. ' ' . shellescape(LatexBox_GetMainTexFile())
 
 	" callback after latexmk is finished
-	let vimcmd = g:vim_program . ' --servername ' . v:servername . ' --remote-expr ' . 
+	let vimcmd = g:vim_program . ' --servername ' . v:servername . ' --remote-expr ' .
 				\ shellescape(callback) . '\(\"' . fnameescape(basename) . '\",$?\)'
 
 	silent execute '! ( ' . vimsetpid . ' ; ( ' . cmd . ' ) ; ' . vimcmd . ' ) >&/dev/null &'
@@ -194,7 +238,7 @@ endfunction
 
 " LatexErrors {{{
 " LatexBox_LatexErrors(jump, [basename])
-function! LatexBox_LatexErrors(jump, ...)
+function! LatexBox_LatexErrors(status, ...)
 	if a:0 >= 1
 		let log = a:1 . '.log'
 	else
@@ -209,20 +253,34 @@ function! LatexBox_LatexErrors(jump, ...)
 		execute 'cd ' . LatexBox_GetTexRoot()
 	endif
 
-	if (a:jump)
+	if (g:LatexBox_autojump)
 		execute 'cfile ' . fnameescape(log)
 	else
 		execute 'cgetfile ' . fnameescape(log)
 	endif
+
+	if(g:LatexBox_quickfix==1)
+		" always open quickfix when an error/warning is detected
+		ccl
+		cw
+		redraw!
+	endif
+
+	if a:status
+		echomsg "latexmk exited with status " . a:status
+	else
+		echomsg "latexmk finished"
+	endif
+
 endfunction
 " }}}
 
 " Commands {{{
-command! -buffer -bang	Latexmk				call LatexBox_Latexmk(<q-bang> == "!")
-command! -buffer -bang	LatexmkClean		call LatexBox_LatexmkClean(<q-bang> == "!")
-command! -buffer -bang	LatexmkStatus		call LatexBox_LatexmkStatus(<q-bang> == "!")
-command! -buffer 		LatexmkStop			call LatexBox_LatexmkStop()
-command! -buffer      	LatexErrors			call LatexBox_LatexErrors(1)
+command! -bang	Latexmk				call LatexBox_Latexmk(<q-bang> == "!")
+command! -bang	LatexmkClean		call LatexBox_LatexmkClean(<q-bang> == "!")
+command! -bang	LatexmkStatus		call LatexBox_LatexmkStatus(<q-bang> == "!")
+command! LatexmkStop			call LatexBox_LatexmkStop()
+command! LatexErrors			call LatexBox_LatexErrors(1)
 " }}}
 
 autocmd VimLeavePre * call <SID>kill_all_latexmk()

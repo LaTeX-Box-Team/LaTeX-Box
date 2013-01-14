@@ -1,4 +1,4 @@
-*latex-box.txt*  	LaTeX Box
+*latex-box.txt*	LaTeX Box
 *latex-box*
 
 This plugin consists of a set of tools to help editing LaTeX documents.
@@ -42,11 +42,13 @@ This plugin provides:
 |latex-box-settings-completion|		Completion
 |latex-box-settings-windows|		Vim Windows
 
+|latex-box-folding|			FOLDING
+
 |latex-box-FAQ|				Frequently Asked Questions
 
 ==============================================================================
 
-COMPLETION						*latex-box-completion*
+COMPLETION					*latex-box-completion*
 
 Completion is achieved through omni completion |compl-omni|, with default
 bindings <CTRL-X><CTRL-O>. There are four types of completion:
@@ -92,9 +94,9 @@ Labels ~
 
 Label completion is triggered by '\ref{' or '\eqref{'.  For example, >
 	\ref{sec:<CTRL-X><CTRL-O>
-offers a list of all matching labels, with their associated value and page number.
-Labels are read from the aux file, so label completion works only after
-compilation.
+offers a list of all matching labels, with their associated value and page
+number.  Labels are read from the aux file, so label completion works only
+after compilation.
 
 It matches:
 	1. labels: >
@@ -115,8 +117,8 @@ Associated settings:
 						*latex-box-completion-bibtex*
 BibTeX entries ~
 
-BibTeX completion is triggered by '\cite{', '\citep{' or '\citet{'.
-For example, assume you have in your .bib files an entry looking like: >
+BibTeX completion is triggered by '\cite{', '\citep{' or '\citet{'.  For
+example, assume you have in your .bib files an entry looking like: >
 
 	@book {	knuth1981,
 		author = "Donald E. Knuth",
@@ -139,11 +141,11 @@ Associated settings:
 
 ==============================================================================
 
-COMMANDS						*latex-box-commands*
+COMMANDS					*latex-box-commands*
 
 ------------------------------------------------------------------------------
 
-							*latex-box-commands-compilation*
+						*latex-box-commands-compilation*
 Compilation ~
 
 *:Latexmk*
@@ -171,7 +173,7 @@ number). To navigate through the errors, you can use the |:cc|, |:cn| and
 
 ------------------------------------------------------------------------------
 
-							*latex-box-commands-viewing*
+						*latex-box-commands-viewing*
 Viewing ~
 
 *:LatexView*
@@ -180,19 +182,21 @@ Viewing ~
 
 ------------------------------------------------------------------------------
 
-							*latex-box-commands-motion*
+						*latex-box-commands-motion*
 Motion ~
 
 *:LatexTOC*
 	Open a table of contents.
 	Use Enter to navigate to selected entry.
 	See |g:LatexBox_split_width|.
+	See |g:LatexBox_split_side|.
 
-
+Associated setting:
+	|g:LatexBox_plaintext_toc| (set this if UTF8 conversion does not work)
 
 ==============================================================================
 
-MOTION							*latex-box-motion*
+MOTION						*latex-box-motion*
 
 The function LatexBox_JumpToNextBraces({backward}) allows to jump outside of
 the current brace/bracket pair, or inside of the next opening braces/brackets.
@@ -200,11 +204,11 @@ the current brace/bracket pair, or inside of the next opening braces/brackets.
 
 ==============================================================================
 
-MAPPINGS						*latex-box-mappings*
+MAPPINGS					*latex-box-mappings*
 
 ------------------------------------------------------------------------------
 
-							*latex-box-mappings-compilation*
+						*latex-box-mappings-compilation*
 Compilation ~
 
 <LocalLeader>ll		|:Latexmk|
@@ -228,7 +232,7 @@ Compilation ~
 
 ------------------------------------------------------------------------------
 
-							*latex-box-mappings-viewing*
+						*latex-box-mappings-viewing*
 Viewing ~
 
 <LocalLeader>lv		|:LatexView|
@@ -236,7 +240,7 @@ Viewing ~
 
 ------------------------------------------------------------------------------
 
-							*latex-box-mappings-insertion*
+						*latex-box-mappings-insertion*
 Insertion ~
 
 
@@ -266,7 +270,7 @@ Suggested mappings to put in ~/.vim/ftplugin/tex.vim: >
 <
 ------------------------------------------------------------------------------
 
-							*latex-box-mappings-motion*
+						*latex-box-mappings-motion*
 Motion ~
 
 <LocalLeader>lt		|:LatexTOC|
@@ -288,7 +292,7 @@ Suggested bindings: >
 
 ==============================================================================
 
-SETTINGS						*latex-box-settings*
+SETTINGS					*latex-box-settings*
 
 
 ------------------------------------------------------------------------------
@@ -327,16 +331,22 @@ Completion ~
 	|latex-box-completion-commands|.
 	See |complete-items|.
 
-*g:LatexBox_cite_pattern*		Default: '\\cite\(p\|t\)\?\*\?\_\s*{'
-*g:LatexBox_ref_pattern*		Default: '\\v\?\(eq\|page\)\?ref\*\?\_\s*{'
+*g:LatexBox_cite_pattern*  Default: '\c\\\a*cite\a*\*\?\(\[[^\]]*\]\)\_\s*{'
+*g:LatexBox_ref_pattern*   Default: '\C\\v\?\(eq\|page\|[cC]\)\?ref\*\?\_\s*{'
 
-	Patterns to match \cite and \ref commands for BibTeX and label completion.
-	Must include the trailing '{'.
-	To match all commands that contain 'cite' (case insensitive), use: >
-		let LatexBox_cite_pattern = '\c\\\a*cite\a*\*\?\_\s*{'
-<	To match all commands that end with 'ref' (case insensitive): >
+	Patterns to match \cite and \ref commands for BibTeX and label
+	completion.  They must include the trailing '{'.  The default settings
+	should work for most standard LaTeX packages.
+
+	Examples:
+
+	To match only the 'cite' command (case insensitive), use: >
+		let LatexBox_cite_pattern = '\c\\cite\*\?\_\s*{'
+
+	To match all commands that end with 'ref' (case insensitive), use: >
 		let LatexBox_ref_pattern = '\c\\\a*ref\*\?\_\s*{'
-<	Both examples match commands with a trailing star too.
+
+	Both examples match commands with a trailing star too.
 
 
 ------------------------------------------------------------------------------
@@ -351,8 +361,6 @@ Templates (DEPRECATED) ~
 	I think it is better to leave this task to plug-ins oriented to do
 	this well, like snipMate:
 	http://www.vim.org/scripts/script.php?script_id=2540
-
-	
 
 
 ------------------------------------------------------------------------------
@@ -379,6 +387,10 @@ Compilation ~
 
 	Viewer application for the output file, e.g., "xpdf".
 
+*g:LatexBox_quickfix*		Default: 1
+
+	If set to 0, disable automatic quickfix window.
+
 *g:LatexBox_autojump*		Default: 0
 
 	Automatically jump to first error after calling latexmk.
@@ -390,6 +402,13 @@ Compilation ~
 	this variable to the path of the main source file on which LaTeX must
 	be called.
 
+*g:LatexBox_show_warnings*	Default: 1
+
+	If set to 1, warnings in complication will be listed as errors.
+
+*g:LatexBox_ignore_warnings*	Default: ['Underfull', 'Overfull', 'specifier changed to']
+ 
+	A list of warnings to be ignored. 
 
 ------------------------------------------------------------------------------
 
@@ -399,6 +418,35 @@ Vim Windows ~
 *g:LatexBox_split_width*	Default: 30
 
 	Width of vertically split vim windows. Used for the table of contents.
+
+
+*g:LatexBox_split_side*	Default: "leftabove"
+
+	On which side the vertically split windows appear.  Used for the
+	table of contents.
+	Set it to "rightbelow" to have it on the right side.
+
+==============================================================================
+
+FOLDING						*latex-box-folding*
+
+LatexBox can fold texts according to LaTeX structure (part, chapter, section
+and subsection).
+
+*g:LatexBox_Folding*		Default: undefined
+
+	Set to 1 to activate LaTeX structure folding. Please note that any
+	modeline that would set |foldmethod| to something else than
+	'fold-expr' will disable the function. The same goes for |foldexpr|.
+	Set this variable in your .vimrc
+
+*g:LatexBox_fold_envs*       Default: undefined
+
+	Turn on/off folding of environments
+
+*g:LatexBox_fold_preamble*       Default: undefined
+
+	Turn on/off folding of preamble
 
 
 ==============================================================================
@@ -420,23 +468,23 @@ Q: How can I use xelatex instead of pdflatex for some documents only?
 A: Instead of putting the settings in your ~/.latexmkrc file, put them in your
    document's working directory, in a file named either latexmkrc or .latexmkrc: >
 	$pdflatex = 'xelatex %O %S'
-<
 
 Q: How can I specify the main TeX file for a multi-file document
 
-A: Add a comment to the first few lines of your file to specify this: >
-	%! TEX root = main.tex'
-<
+A: There are serverl ways to do this:
+
+   1. Add a comment to the first few lines of your file to specify this: >
+	%! TEX root = main.tex
+<  2. Create an empty file called 'main.tex.latexmain' in the same directory.
 
 ==============================================================================
 
 TODO						*latex-box-todo*
 
-- Automatically find the main TeX document.
 - Improve TOC jumping and filter out weird characters. Deal with multiple
   sections with the same name.
 - Fix bugs?
 
 ==============================================================================
 
-vim:tw=78:ts=8:sw=8:ft=help:norl:noet:
+vim:tw=78:ts=8:sw=8:ft=help:norl:noet:softtabstop=8
