@@ -7,7 +7,8 @@ Manifesto: LaTeX Box aims to remain lightweight and stay out of the way.
 
 This plugin provides:
 - Background compilation using latexmk;
-- Completion for commands, environments, labels, and bibtex entries;
+- Completion for commands, environments, labels, bibtex entries and inline
+  maths;
 - A simple table of contents;
 - Smart indentation (activated with "set smartindent");
 - Highlighting of matching \begin/\end pairs
@@ -23,6 +24,7 @@ This plugin provides:
 |latex-box-completion-environments|	Environments
 |latex-box-completion-labels|		Labels
 |latex-box-completion-bibtex|		Bibtex
+|latex-box-completion-inlineMaths|	InlineMaths
 
 |latex-box-commands|			COMMANDS
 |latex-box-commands-compilation|	Compilation
@@ -51,7 +53,7 @@ This plugin provides:
 COMPLETION					*latex-box-completion*
 
 Completion is achieved through omni completion |compl-omni|, with default
-bindings <CTRL-X><CTRL-O>. There are four types of completion:
+bindings <CTRL-X><CTRL-O>. There are five types of completion:
 
 
 
@@ -138,6 +140,94 @@ Associated settings:
 	|g:LatexBox_bibtex_wild_spaces|
 	|g:LatexBox_completion_close_braces|
 
+
+------------------------------------------------------------------------------
+
+						*latex-box-completion-inlineMaths*	
+InlineMaths ~
+
+InlineMaths completion is triggered by '$', '\(' or '\[', and can also be
+triggered by '$' that locates in math environment '\(...\)', '\[...\]', or
+'\begin{eq-env} ... \end{eq-env}'. It suggests the inline maths you write in
+'$' pairs and in '\( ... \)' and the corresponding line number.
+
+Note that an inline math with open and close symbols on different lines will
+not be suggested.
+
+For example, you type two in line maths looking like: >
+
+	$hello$, \(world\)
+
+And you save them before trying to complete elsewhere: >
+	:w
+
+You type '$', '\(' or '\[', and part of 'hello': >
+
+	$h <CTRL-X><CTRL-O> 
+	\(h <CTRL-X><CTRL-O> 
+	\[h <CTRL-X><CTRL-O>
+
+They comlete to: >
+
+	$hello$
+	\(hello\)
+	\[hello\]
+
+You can still add more in line maths in '\(...\)' and '\[...\]': >
+	
+	\(hello, $ w <CTRL-X><CTRL-O> \)
+	\[hello, $ w <CTRL-X><CTRL-O> \]
+
+The results: >
+	
+	\(hello, world\)
+	\[hello, world\]
+
+Or cross lines: >
+	
+	\( hello, 
+	$ w <CTRL-X><CTRL-O> 
+	
+	\[ hello, 
+	$ w <CTRL-X><CTRL-O> 
+
+The results: >
+	
+	\(hello, 
+	world
+	
+	\[hello, 
+	world
+
+For equation envirments, it's always triggered by '$': >
+	
+	\begin{eq-env}
+		$h <CTRL-X><CTRL-O>
+		$w <CTRL-X><CTRL-O>
+	\end{eq-env}
+
+It matches: >
+
+	\begin{eq-env}
+		hello
+		world
+	\end{eq-env}
+
+
+ATTENTION: do not try to complete inline maths when
+1. '$' pair is in multi lines: >
+	
+	$
+	h <CTRL-X><CTRL-O>
+
+2. '\begin{eq-env}' and '\end{eq-env}' are in single line: >
+	
+	\begin{eq-env}   $ h <CTRL-X><CTRL-O>     \end{eq-env} 
+
+Associated setting: >
+	
+	g:LatexBox_complete_inlineMath
+	g:LatexBox_eq_env_patterns
 
 ==============================================================================
 
@@ -347,6 +437,14 @@ Completion ~
 		let LatexBox_ref_pattern = '\c\\\a*ref\*\?\_\s*{'
 
 	Both examples match commands with a trailing star too.
+
+*g:LatexBox_complete_inlineMath* Default: 0
+	Switch for inline math completion.
+*g:LatexBox_eq_env_patterns* Default: 'equation\|gather\|multiline\|align\|flalign\|alignat\|eqnarray'
+	Equation environments besides '$...$', '\(...\)', and '\[...\]' that 
+	support inline math completion.
+
+	Note that 'eq-env-name*' will also be supported if we add 'eq-env-name' in the list.
 
 
 ------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 
 ## This plugin provides:
 - Background compilation using latexmk.
-- Completion for commands, environments, labels, and bibtex entries.
+- Completion for commands, environments, labels, bibtex entries, and inline maths.
 - A simple table of contents.
 - Smart indentation.
 - Highlight matching \begin/\end and \left\right pairs.
