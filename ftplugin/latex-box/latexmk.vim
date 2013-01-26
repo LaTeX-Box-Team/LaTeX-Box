@@ -106,7 +106,7 @@ function! LatexBox_Latexmk(force)
 
 	" callback to set the pid
 	let vimsetpid = g:vim_program . ' --servername ' . v:servername . ' --remote-expr ' .
-				\ shellescape(callsetpid) . '\(\"' . fnameescape(basename) . '\",$$\)'
+				\ LatexBox_EscapePath(callsetpid) . '\(\"' . LatexBox_EscapePath(basename) . '\",$$\)'
 
 	" wrap width in log file
 	let max_print_line = 2000
@@ -119,14 +119,15 @@ function! LatexBox_Latexmk(force)
 	endif
 
 	" latexmk command
-	let cmd = 'cd ' . shellescape(LatexBox_GetTexRoot()) . ' ; ' . l:env .
-				\ ' latexmk ' . l:options	. ' ' . shellescape(LatexBox_GetMainTexFile())
+	let cmd = 'cd ' . LatexBox_EscapePath(LatexBox_GetTexRoot()) . ' ; ' . l:env .
+				\ ' latexmk ' . l:options	. ' ' . LatexBox_EscapePath(LatexBox_GetMainTexFile())
 
 	" callback after latexmk is finished
 	let vimcmd = g:vim_program . ' --servername ' . v:servername . ' --remote-expr ' .
-				\ shellescape(callback) . '\(\"' . fnameescape(basename) . '\",$?\)'
+				\ LatexBox_EscapePath(callback) . '\(\"' . LatexBox_EscapePath(basename) . '\",$?\)'
 
-	silent execute '! ( ' . vimsetpid . ' ; ( ' . cmd . ' ) ; ' . vimcmd . ' ) >&/dev/null &'
+	"silent execute '! ( ' . vimsetpid . ' ; ( ' . cmd . ' ) ; ' . vimcmd . ' ) >&/dev/null &'
+	execute '! ( ' . vimsetpid . ' ; ( ' . cmd . ' ) ; ' . vimcmd . ' ) '
 	if !has("gui_running")
 		redraw!
 	endif
