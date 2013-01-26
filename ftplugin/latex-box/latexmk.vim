@@ -250,7 +250,7 @@ function! LatexBox_LatexErrors(status, ...)
 		echohl WarningMsg
 		echomsg 'Changing directory to TeX root: ' . LatexBox_GetTexRoot() . ' to support error log parsing'
 		echohl None
-		execute 'cd ' . LatexBox_GetTexRoot()
+		execute 'cd "' . LatexBox_GetTexRoot() . '"'
 	endif
 
 	if (g:LatexBox_autojump)
