@@ -51,6 +51,13 @@ endif
 
 " Filename utilities {{{
 
+function! LatexBox_EscapePath(path)
+	let l:path = substitute(shellescape(fnameescape(a:path)), "\[()\]", "\\\\&", "g")
+	let l:path = strpart(l:path, 1, strlen(l:path) - 2)
+
+	return l:path
+endfunction
+
 function! LatexBox_GetMainTexFile()
 
 	" 1. check for the b:main_tex_file variable
