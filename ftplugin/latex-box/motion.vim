@@ -416,12 +416,18 @@ function! s:ReadTOC(auxfile, ...)
 
 endfunction
 
-function! LatexBox_TOC()
+function! LatexBox_TOC(...)
 
 	" Check if window already exists
 	let winnr = bufwinnr(bufnr('LaTeX TOC'))
 	if winnr >= 0
-		silent execute winnr . 'wincmd w'
+		if a:0 == 0
+			silent execute winnr . 'wincmd w'
+		else
+			" Supplying an argument to this function causes toggling instead
+			" of jumping to the TOC window
+			silent execute 'bwipeout' . bufnr('LaTeX TOC')
+		endif
 		return
 	endif
 
@@ -599,6 +605,7 @@ endfunction
 
 " TOC Command {{{
 command! LatexTOC call LatexBox_TOC()
+command! LatexTOCToggle call LatexBox_TOC(1)
 " }}}
 
 " vim:fdm=marker:ff=unix:noet:ts=4:sw=4

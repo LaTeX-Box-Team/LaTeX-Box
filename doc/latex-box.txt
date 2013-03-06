@@ -280,6 +280,8 @@ Motion ~
 	Use Enter to navigate to selected entry.
 	See |g:LatexBox_split_width|.
 	See |g:LatexBox_split_side|.
+*:LatexTOCToggle*
+	Toggle the display of the table of contents.
 
 Associated setting:
 	|g:LatexBox_plaintext_toc| (set this if UTF8 conversion does not work)
