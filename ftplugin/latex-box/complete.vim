@@ -77,13 +77,14 @@ endif
 function! LatexBox_kpsewhich(file)
 	let old_dir = getcwd()
 	execute 'lcd ' . fnameescape(LatexBox_GetTexRoot())
-	redir => out
-	silent execute '!kpsewhich ' . a:file
-	redir END
+	let out = system('kpsewhich "' . a:file . '"')
 
-	let out = split(out, "\<NL>")[-1]
-	let out = substitute(out, '\r', '', 'g')
-	let out = glob(fnamemodify(out, ':p'), 1)
+	" If kpsewhich has found something, it returns a non-empty string with a
+	" newline at the end; otherwise the string is empty
+	if len(out)
+		" Remove the trailing newline
+		let out = fnamemodify(out[:-2], ':p')
+	endif
 
 	execute 'lcd ' . fnameescape(old_dir)
 
@@ -378,7 +379,8 @@ function! s:ExtractInputs()
 		let [inline, inbegin] = searchpos( '\\@input{', 'ecW' )
 	endwhile
 
-	return matches
+	" Remove empty strings for nonexistant .aux files
+	return filter(matches, 'v:val != ""')
 endfunction
 "}}}
 
@@ -402,19 +404,25 @@ let s:LabelCache = {}
 " the LabelCache, all current labels are collected and
 " returned.
 function! s:GetLabelCache(file)
-	let fid = fnamemodify(a:file, ':p')
-
-	let labels = []
-	if !has_key(s:LabelCache , fid) || s:LabelCache[fid][0] != getftime(fid)
-		" Open file in temporary split window for label extraction.
-		exe '1sp +let\ labels=<SID>ExtractLabels()|quit! ' . fid
-		exe '1sp +let\ inputs=<SID>ExtractInputs()|quit! ' . fid
-		let s:LabelCache[fid] = [ getftime(fid), labels, inputs ]
-	else
-		let labels = s:LabelCache[fid][1]
+	if !filereadable(a:file)
+		return []
 	endif
 
-	for input in s:LabelCache[fid][2]
+	if !has_key(s:LabelCache , a:file) || s:LabelCache[a:file][0] != getftime(a:file)
+		" Open file in temporary split window for label extraction.
+		silent execute '1sp +let\ labels=s:ExtractLabels()|let\ inputs=s:ExtractInputs()|quit! ' . a:file
+		let s:LabelCache[a:file] = [ getftime(a:file), labels, inputs ]
+	endif
+
+	" We need to create a copy of s:LabelCache[fid][1], otherwise all inputs'
+	" labels would be added to the current file's label cache upon each
+	" completion call, leading to duplicates/triplicates/etc. and decreased
+	" performance.
+	" Also, because we don't anything with the list besides matching copies,
+	" we can get away with a shallow copy for now.
+	let labels = copy(s:LabelCache[a:file][1])
+
+	for input in s:LabelCache[a:file][2]
 		let labels += s:GetLabelCache(input)
 	endfor
 
@@ -423,20 +431,8 @@ endfunction
 "}}}
 
 " Complete Labels {{{
-" the optional argument is the file name to be searched
-function! s:CompleteLabels(regex, ...)
-
-	if a:0 == 0
-		let file = LatexBox_GetAuxFile()
-	else
-		let file = a:1
-	endif
-
-	if !filereadable(file)
-		return []
-	endif
-
-	let labels = s:GetLabelCache(file)
+function! s:CompleteLabels(regex)
+	let labels = s:GetLabelCache(LatexBox_GetAuxFile())
 
 	let matches = filter( copy(labels), 'match(v:val[0], "' . a:regex . '") != -1' )
 	if empty(matches)
