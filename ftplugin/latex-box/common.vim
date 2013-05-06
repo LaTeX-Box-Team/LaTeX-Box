@@ -165,6 +165,17 @@ function! LatexBox_GetLogFile()
 endfunction
 
 function! LatexBox_GetOutputFile()
+	" 1. check for b:build_dir variable
+	if exists('b:build_dir') && isdirectory(b:build_dir)
+		return b:build_dir . '/' . LatexBox_GetTexBasename(0) . '.' . g:LatexBox_output_type
+	endif
+
+	" 2. check for g:LatexBox_build_dir variable
+	if exists('g:LatexBox_build_dir') && isdirectory(g:LatexBox_build_dir)
+		return g:LatexBox_build_dir . '/' . LatexBox_GetTexBasename(0) . '.' . g:LatexBox_output_type
+	endif
+
+	" 3. use the base name of main tex file
 	return LatexBox_GetTexBasename(1) . '.' . g:LatexBox_output_type
 endfunction
 " }}}
