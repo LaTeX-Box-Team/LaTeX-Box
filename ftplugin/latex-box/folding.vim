@@ -183,7 +183,7 @@ function! s:CaptionEnv()
         end
         let i -= 1
     endwhile
-    return ""
+    return matchstr(getline(v:foldstart),"\%.*")
 endfunction
 
 function! s:CaptionTable()
