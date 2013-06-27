@@ -265,6 +265,9 @@ function! LatexBox_LatexErrors(status, ...)
 	if g:LatexBox_quickfix
 		ccl
 		cw
+		if g:LatexBox_quickfix==2
+			wincmd p
+		endif
 	endif
 
 	if a:status

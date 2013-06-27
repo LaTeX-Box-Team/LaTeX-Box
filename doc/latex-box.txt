@@ -502,7 +502,15 @@ Compilation ~
 
 *g:LatexBox_quickfix*		Default: 1
 
-	If set to 0, disable automatic quickfix window.
+	Adjust the behavior of the quickfix window when there are compilation errors or
+	warnings (according to the value of |g:LatexBox_show_warnings|):
+
+	Value		Effect ~
+	0		The quickfix is not opened automatically.
+	1		The quickfix window is opened automatically if not
+			empty and becomes the active window.
+	2		The quickfix window is opened automatically if not
+			empty but the cursor stays in the current window.
 
 *g:LatexBox_autojump*		Default: 0
 
@@ -517,7 +525,7 @@ Compilation ~
 
 *g:LatexBox_show_warnings*	Default: 1
 
-	If set to 1, warnings in complication will be listed as errors.
+	If set to 1, warnings in compilation will be listed as errors.
 
 *g:LatexBox_ignore_warnings*	Default: ['Underfull', 'Overfull', 'specifier changed to']
  
