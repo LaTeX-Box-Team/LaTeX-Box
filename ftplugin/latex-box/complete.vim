@@ -468,7 +468,7 @@ endfunction
 " Complete Inline Math Or Not {{{
 " Return 1, when cursor is in a math env:
 " 	1, there is a single $ in the current line on the left of cursor
-" 	2, there is an open-eq-env on/above the current line 
+" 	2, there is an open-eq-env on/above the current line
 " 		(open-eq-env : \(, \[, and \begin{eq-env} )
 " Return 0, when cursor is not in a math env
 function! s:LatexBox_complete_inlineMath_or_not()
@@ -512,7 +512,7 @@ function! s:LatexBox_complete_inlineMath_or_not()
 	if cursor_single_dollar >= 0
 		" check whether $ is in \(...\), \[...\], or \begin{eq}...\end{eq}
 
-		" check current line, 
+		" check current line,
 		" search for LatexBox_eq_env_close_patterns: \[ and \(
 		let lnum = line('.')
 		for i in range(0, (len(s:LatexBox_eq_env_open_patterns)-1))
@@ -525,7 +525,7 @@ function! s:LatexBox_complete_inlineMath_or_not()
 				return 1
 			end
 		endfor
-	
+
 		" check the lines above
 		" search for s:LatexBox_doc_structure_patterns, and end-of-math-env
 		let lnum -= 1
@@ -533,15 +533,15 @@ function! s:LatexBox_complete_inlineMath_or_not()
 			let line = getline(lnum)
 			if line =~ notcomment . '\(' . s:LatexBox_doc_structure_patterns .
 						\ '\|' . '\\end\s*{\(' . g:LatexBox_eq_env_patterns . '\)\*\?}\)'
-				" when s:LatexBox_doc_structure_patterns or g:LatexBox_eq_env_patterns 
+				" when s:LatexBox_doc_structure_patterns or g:LatexBox_eq_env_patterns
 				" are found first, complete math, leave with $ at both sides
 				let s:eq_dollar_parenthesis_bracket_empty = '$'
 				let s:eq_pos = cursor_single_dollar
 				break
 			elseif line =~ notcomment . '\\begin\s*{\(' . g:LatexBox_eq_env_patterns . '\)\*\?}'
-				" g:LatexBox_eq_env_patterns is found, complete math, remove $ 
+				" g:LatexBox_eq_env_patterns is found, complete math, remove $
 				let s:eq_dollar_parenthesis_bracket_empty = ''
-				let s:eq_pos = cursor_single_dollar - 1 
+				let s:eq_pos = cursor_single_dollar - 1
 				break
 			endif
 			let lnum -= 1
@@ -556,7 +556,7 @@ function! s:LatexBox_complete_inlineMath_or_not()
 		let cnum_parenthesis_open = matchend(line_start_2_cnum_saved, '\\(', cnum_parenthesis_close)
 		if cnum_parenthesis_open >= 0
 			let s:eq_dollar_parenthesis_bracket_empty = '\)'
-			let s:eq_pos = cnum_parenthesis_open 
+			let s:eq_pos = cnum_parenthesis_open
 			return 1
 		end
 
@@ -577,7 +577,7 @@ function! s:LatexBox_complete_inlineMath_or_not()
 endfunction
 " }}}
 
-" Complete inline euqation{{{ 
+" Complete inline euqation{{{
 function! s:LatexBox_inlineMath_completion(regex, ...)
 
 	if a:0 == 0
@@ -629,7 +629,7 @@ function! s:LatexBox_inlineMath_mathlist(line,inline_pattern, line_num)
 
 			" show line number of inline math
 			let entry = {'word': matches[1], 'menu': '[' . a:line_num . ']'}
-            
+
             if  s:eq_dollar_parenthesis_bracket_empty != ''
                 let entry = copy(entry)
                 let entry.abbr = entry.word
@@ -768,11 +768,11 @@ endfunction
 " }}}
 
 " Mappings {{{
-imap <silent> <Plug>LatexCloseCurEnv			<C-R>=<SID>CloseCurEnv()<CR>
-vmap <silent> <Plug>LatexWrapSelection			:<c-u>call <SID>WrapSelection('')<CR>i
-vmap <silent> <Plug>LatexEnvWrapSelection		:<c-u>call <SID>PromptEnvWrapSelection()<CR>
-vmap <silent> <Plug>LatexEnvWrapFmtSelection	:<c-u>call <SID>PromptEnvWrapSelection(1)<CR>
-nmap <silent> <Plug>LatexChangeEnv				:call <SID>ChangeEnvPrompt()<CR>
+inoremap <silent> <Plug>LatexCloseCurEnv			<C-R>=<SID>CloseCurEnv()<CR>
+vnoremap <silent> <Plug>LatexWrapSelection			:<c-u>call <SID>WrapSelection('')<CR>i
+vnoremap <silent> <Plug>LatexEnvWrapSelection		:<c-u>call <SID>PromptEnvWrapSelection()<CR>
+vnoremap <silent> <Plug>LatexEnvWrapFmtSelection	:<c-u>call <SID>PromptEnvWrapSelection(1)<CR>
+nnoremap <silent> <Plug>LatexChangeEnv				:call <SID>ChangeEnvPrompt()<CR>
 " }}}
 
 " vim:fdm=marker:ff=unix:noet:ts=4:sw=4
