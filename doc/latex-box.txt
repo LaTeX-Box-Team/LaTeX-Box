@@ -235,23 +235,28 @@ COMMANDS                                                  *latex-box-commands*
 Compilation ~
 
 *:Latexmk*
-        Compile with latexmk in background.
-        See |g:LatexBox_latexmk_options|.
-*:LatexmkForce*
-        Force compilation with latexmk in background.
+        Compile with latexmk.
+        See |g:LatexBox_latexmk_async|, |g:LatexBox_latexmk_options|, and
+        |g:LatexBox_latexmk_preview_continuously|.
+*:Latexmk!*
+        Force compilation with latexmk (runs latexmk with "-g" option).
 *:LatexmkClean*
         Clean temporary output from LaTeX.
-*:LatexmkCleanAll*
+*:LatexmkClean!*
         Clean all output from LaTeX.
-*:LatexmkStop*
-        Stop latexmk if it is running.
 *:LatexmkStatus*
         Show the running status of latexmk for the current buffer.
-*:LatexmkStatusDetailed*
+*:LatexmkStatus!*
         Show the running status of latexmk for all buffers with process group
-        ID's.
+        ID's or PID's.
+*:LatexmkStop*
+        Stop latexmk if it is running.
 *:LatexErrors*
         Load the log file for the current document and jump to the first error.
+
+Note: The commands |:LatexmkStop| and |:LatexmkStatus| are only relevant when
+|g:LatexBox_latexmk_async| or |g:LatexBox_latexmk_preview_continuously| is
+set.
 
 When latexmk terminates, it reports its success or failure (with status
 number). To navigate through the errors, you can use the |:cc|, |:cn| and
@@ -299,18 +304,18 @@ MAPPINGS                                                  *latex-box-mappings*
 Compilation ~
 
 <LocalLeader>ll                                                     |:Latexmk|
-        Compile with latexmk in background.
-<LocalLeader>lL                                                |:LatexmkForce|
-        Force compilation with latexmk in background.
+        Compile with latexmk.
+<LocalLeader>lL                                                    |:Latexmk!|
+        Force compilation with latexmk.
 <LocalLeader>lc                                                |:LatexmkClean|
         Clean temporary output from LaTeX.
-<LocalLeader>lC                                             |:LatexmkCleanAll|
+<LocalLeader>lC                                               |:LatexmkClean!|
         Clean all output from LaTeX.
 <LocalLeader>lk                                                 |:LatexmkStop|
         Stop latexmk if it is running.
 <LocalLeader>lg                                               |:LatexmkStatus|
         Show the running status of latexmk for the current buffer.
-<LocalLeader>lG                                       |:LatexmkStatusDetailed|
+<LocalLeader>lG                                              |:LatexmkStatus!|
         Show the running status of latexmk for all buffers with process group
         ID's.
 <LocalLeader>le                                                 |:LatexErrors|
@@ -488,22 +493,33 @@ Templates (DEPRECATED) ~
                                               *latex-box-settings-compilation*
 Compilation ~
 
-*g:vim_program*                         Default: autodetected
+*g:vim_program*                                 Default: autodetected
         Vim program to use on command line for callbacks. If autodetect
         fails, defaults to: >
                 '/Applications/MacVim.app/Contents/MacOS/Vim -g'
 <       on MacVim, or to |v:progname| on other systems.
 
-*g:LatexBox_latexmk_options*            Default: ""
+*g:LatexBox_latexmk_async*                      Default: 0
+        Enable asynchronous LaTeX compilation using vimserver. This will
+        allow latexmk to run in the background and load any compilation
+        errors in a quickfix window after it finishes running.
+
+*g:LatexBox_latexmk_preview_continuously*       Default: 0
+        Run latexmk in continuous mode (i.e. with the "-pvc" option).
+        Latexmk will track the currently edited file for writes and
+        recompile automatically when necessary, without hanging VIM. Note that
+        this will disable automatic error loading.
+
+*g:LatexBox_latexmk_options*                    Default: ""
         Additional options to pass to latexmk during compilation, e.g, "-d".
 
-*g:LatexBox_output_type*                Default: "pdf"
+*g:LatexBox_output_type*                        Default: "pdf"
         Extension of the output file. One of "pdf", "dvi" or "ps".
 
-*g:LatexBox_viewer*                     Default: "xdg-open"
+*g:LatexBox_viewer*                             Default: "xdg-open"
         Viewer application for the output file, e.g., "xpdf".
 
-*g:LatexBox_quickfix*                   Default: 1
+*g:LatexBox_quickfix*                           Default: 1
         Adjust the behavior of the quickfix window when there are compilation
         errors or warnings. See also |g:LatexBox_show_warnings|. Recognized
         options are:
@@ -515,16 +531,16 @@ Compilation ~
         2       The quickfix window is opened automatically if not
                 empty but the cursor stays in the current window.
 
-*g:LatexBox_autojump*                   Default: 0
+*g:LatexBox_autojump*                           Default: 0
         Automatically jump to first error after calling latexmk.
 
-*b:main_tex_file*                       Default: ""
+*b:main_tex_file*                               Default: ""
         Path to the main LaTeX file associated to the current buffer.
         When editing a LaTeX document consisting of multiple source files, set
         this variable to the path of the main source file on which LaTeX must
         be called.
 
-*g:LatexBox_show_warnings*              Default: 1
+*g:LatexBox_show_warnings*                      Default: 1
         If set to 1, warnings in compilation will be listed as errors.
 
 *g:LatexBox_ignore_warnings*
@@ -535,10 +551,10 @@ Compilation ~
                         \ = ['Underfull', 'Overfull', 'specifier changed to']
 <
 
-*g:LatexBox_build_dir*                  Default: ""
+*g:LatexBox_build_dir*                          Default: ""
         Set output directory for build files.
 
-*b:build_dir*                           Default: ""
+*b:build_dir*                                   Default: ""
         Set output directory for build files. This overrides the global
         setting.
 
