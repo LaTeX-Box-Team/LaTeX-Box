@@ -646,11 +646,9 @@ A: Add the following line in your ~/.latexmkrc file: >
    |g:LatexBox_latexmk_options|, for instance as: >
 
         let g:LatexBox_latexmk_options
-                        \ = "-pdflatex='pdflatex -synctex=1 \\%O \\%S'"
+                        \ = "-pdflatex='pdflatex -synctex=1 \%O \%S'"
 
-<  which can be added to your .vimrc file as desired. Note in particular that
-   the %'s must be escaped twice. For more details, see |cmdline-special| and
-   |expr-string|.
+<  which can be added to your .vimrc file as desired.
 
 Q: How can I use xelatex instead of pdflatex for some documents only?
 
