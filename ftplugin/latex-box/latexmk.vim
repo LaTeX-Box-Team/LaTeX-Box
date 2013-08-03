@@ -14,9 +14,6 @@ endif
 if !exists('g:LatexBox_output_type')
 	let g:LatexBox_output_type = 'pdf'
 endif
-if !exists('g:LatexBox_viewer')
-	let g:LatexBox_viewer = 'xdg-open'
-endif
 if !exists('g:LatexBox_autojump')
 	let g:LatexBox_autojump = 0
 endif
@@ -41,24 +38,28 @@ endfunction
 
 " kill_latexmk_process {{{
 function! s:kill_latexmk_process(pid)
-	if g:LatexBox_latexmk_async
-		" vim-server mode
-		let pids = []
-		let tmpfile = tempname()
-		silent execute '!ps x -o pgid,pid > ' . tmpfile
-		for line in readfile(tmpfile)
-			let new_pid = matchstr(line, '^\s*' . a:pid . '\s\+\zs\d\+\ze')
-			if !empty(new_pid)
-				call add(pids, new_pid)
-			endif
-		endfor
-		call delete(tmpfile)
-		if !empty(pids)
-			silent execute '!kill ' . join(pids)
-		endif
+	if has('win32')
+		silent execute '!taskkill /PID ' . a:pid . ' /T /F'
 	else
-		" single background process
-		silent execute '!kill ' . a:pid
+		if g:LatexBox_latexmk_async
+			" vim-server mode
+			let pids = []
+			let tmpfile = tempname()
+			silent execute '!ps x -o pgid,pid > ' . tmpfile
+			for line in readfile(tmpfile)
+				let new_pid = matchstr(line, '^\s*' . a:pid . '\s\+\zs\d\+\ze')
+				if !empty(new_pid)
+					call add(pids, new_pid)
+				endif
+			endfor
+			call delete(tmpfile)
+			if !empty(pids)
+				silent execute '!kill ' . join(pids)
+			endif
+		else
+			" single background process
+			silent execute '!kill ' . a:pid
+		endif
 	endif
 	if !has('gui_running')
 		redraw!
@@ -95,24 +96,28 @@ endfunction
 function! s:setup_vim_server()
 	if !exists('g:vim_program')
 
-		if match(&shell, '/\(bash\|zsh\)$') >= 0
-			let ppid = '$PPID'
-		else
-			let ppid = '$$'
-		endif
-
 		" attempt autodetection of vim executable
 		let g:vim_program = ''
-		let tmpfile = tempname()
-		silent execute '!ps -o command= -p ' . ppid . ' > ' . tmpfile
-		for line in readfile(tmpfile)
-			let line = matchstr(line, '^\S\+\>')
-			if !empty(line) && executable(line)
-				let g:vim_program = line . ' -g'
-				break
+		if has('win32')
+			" Just drop through to the default for windows
+		else
+			if match(&shell, '/\(bash\|zsh\)$') >= 0
+				let ppid = '$PPID'
+			else
+				let ppid = '$$'
 			endif
-		endfor
-		call delete(tmpfile)
+
+			let tmpfile = tempname()
+			silent execute '!ps -o command= -p ' . ppid . ' > ' . tmpfile
+			for line in readfile(tmpfile)
+				let line = matchstr(line, '^\S\+\>')
+				if !empty(line) && executable(line)
+					let g:vim_program = line . ' -g'
+					break
+				endif
+			endfor
+			call delete(tmpfile)
+		endif
 
 		if empty(g:vim_program)
 			if has('gui_macvim')
@@ -127,6 +132,7 @@ endfunction
 " }}}
 
 " Latexmk {{{
+
 function! LatexBox_Latexmk(force)
 	" Define often used names
 	let basepath = LatexBox_GetTexBasename(1)
@@ -142,14 +148,21 @@ function! LatexBox_Latexmk(force)
 
 	" Set wrap width in log file
 	let max_print_line = 2000
-	if match(&shell, '/tcsh$') >= 0
+	if has('win32')
+		let env = 'set max_print_line=' . max_print_line . ' & '
+	elseif match(&shell, '/tcsh$') >= 0
 		let env = 'setenv max_print_line ' . max_print_line . '; '
 	else
 		let env = 'max_print_line=' . max_print_line
 	endif
 
 	" Set latexmk command with options
-	let cmd = 'cd ' . texroot . ';'
+	if has('win32')
+		" Make sure to switch drive as well as directory
+		let cmd = 'cd /D ' . texroot . ' && '
+	else
+		let cmd = 'cd ' . texroot . ' && '
+	endif
 	let cmd .= env . ' latexmk'
 	let cmd .= ' -' . g:LatexBox_output_type 
 	let cmd .= ' -quiet '
@@ -160,8 +173,8 @@ function! LatexBox_Latexmk(force)
 	if g:LatexBox_latexmk_preview_continuously
 		let cmd .= ' -pvc'
 	endif
-	let cmd .= " -e '$pdflatex =~ s/ / -file-line-error /'"
-	let cmd .= " -e '$latex =~ s/ / -file-line-error /'"
+	let cmd .= ' -e ' . shellescape('$pdflatex =~ s/ / -file-line-error /')
+	let cmd .= ' -e ' . shellescape('$latex =~ s/ / -file-line-error /')
 	let cmd .= ' ' . mainfile
 
 	if g:LatexBox_latexmk_async
@@ -175,41 +188,94 @@ function! LatexBox_Latexmk(force)
 		" Start vim server if necessary
 		call s:setup_vim_server()
 
-		" Define callback to set the pid
-		let callsetpid = shellescape(s:SIDWrap('LatexmkSetPID'))
-		let vimsetpid = g:vim_program . ' --servername ' . v:servername
-					\ . ' --remote-expr ' . callsetpid
-					\ . '\(\"' . basepath . '\",$$\)'
+		let setpidfunc = s:SIDWrap('LatexmkSetPID')
+		let callbackfunc = s:SIDWrap('LatexmkCallback')
+		if has('win32')
+			let vim_program = substitute(g:vim_program,
+						\ 'gvim\.exe$', 'vim.exe', '')
 
-		" Define callback after latexmk is finished
-		let callback = shellescape(s:SIDWrap('LatexmkCallback'))
-		let vimcmd = g:vim_program . ' --servername ' . v:servername
-					\ . ' --remote-expr ' . callback
-					\ . '\(\"' . basepath . '\",$?\)'
+			" Define callback to set the pid
+			let callsetpid = setpidfunc . '(''' . basepath . ''', %CMDPID%)'
+			let vimsetpid = vim_program . ' --servername ' . v:servername
+						\ . ' --remote-expr ' . shellescape(callsetpid)
 
-		" Define command
-		" Here we escape '%' because it may be given as a user option through
-		" g:LatexBox_latexmk_options, for instance with an options like
-		" g:Latex..._options = "-pdflatex='pdflatex -synctex=1 \%O \%S'"
-		let cmd = '!(' . vimsetpid . ';'
-					\ . '(' . escape(cmd, '%') . ');'
-					\ . vimcmd . ') >&/dev/null &'
+			" Define callback after latexmk is finished
+			let callback = callbackfunc . '(''' . basepath . ''', %LATEXERR%)'
+			let vimcmd = vim_program . ' --servername ' . v:servername
+						\ . ' --remote-expr ' . shellescape(callback)
+
+			let asyncbat = tempname() . '.bat'
+			call writefile(['setlocal',
+						\ 'set T=%TEMP%\sthUnique.tmp',
+						\ 'wmic process where (Name="WMIC.exe" AND CommandLine LIKE "%%%TIME%%%") '
+						\ . 'get ParentProcessId /value | find "ParentProcessId" >%T%',
+						\ 'set /P A=<%T%',
+						\ 'set CMDPID=%A:~16% & del %T%',
+						\ vimsetpid,
+						\ cmd,
+						\ 'set LATEXERR=%ERRORLEVEL%',
+						\ vimcmd,
+						\ 'endlocal'], asyncbat)
+
+			" Define command
+			let cmd = '!start /b ' . asyncbat . ' & del ' . asyncbat
+		else
+			" Define callback to set the pid
+			let callsetpid = shellescape(setpidfunc).'"(\"'.basepath.'\",$$)"'
+			let vimsetpid = g:vim_program . ' --servername ' . v:servername
+			                        \ . ' --remote-expr ' . callsetpid
+
+			" Define callback after latexmk is finished
+			let callback = shellescape(callbackfunc).'"(\"'.basepath.'\",$?)"'
+			let vimcmd = g:vim_program . ' --servername ' . v:servername
+			                        \ . ' --remote-expr ' . callback
+
+			" Define command
+			" Here we escape '%' because it may be given as a user option through
+			" g:LatexBox_latexmk_options, for instance with an options like
+			" g:Latex..._options = "-pdflatex='pdflatex -synctex=1 \%O \%S'"
+			let cmd = vimsetpid . ' ; ' . escape(cmd, '%') . ' ; ' . vimcmd
+			let cmd = '! (' . cmd . ') >/dev/null &'
+		endif
 
 		echo 'Compiling to ' . g:LatexBox_output_type . '...'
 		silent execute cmd
 	else
 		" Define command
-		let cmd .= '>/dev/null'
-		if g:LatexBox_latexmk_preview_continuously
-			let cmd .= ' &'
+		if has('win32')
+			let cmd .= ' >nul'
+		else
+			let cmd .= ' >/dev/null'
 		endif
 
-		" Execute command
-		echo 'Compiling to ' . g:LatexBox_output_type . '...'
-		let cmd_output = system(cmd)
+		if g:LatexBox_latexmk_preview_continuously
+			if has('win32')
+				let cmd = '!start /b cmd /s /c "' . cmd . '"'
+			else
+				let cmd = '!' . cmd . ' &'
+			endif
+			silent execute cmd
 
-		" Check for errors or save PID
-		if !g:LatexBox_latexmk_preview_continuously
+			" Save PID in order to be able to kill the process when wanted.
+			if has('win32')
+				let tmpfile = tempname()
+				let pidcmd = 'cmd /c "wmic process where '
+							\ . '(CommandLine LIKE "latexmk\%'.mainfile.'\%") '
+							\ . 'get ProcessId /value | find "ProcessId" '
+							\ . '>'.tmpfile.' "'
+				silent execute '! ' . pidcmd
+				let pids = readfile(tmpfile)
+				let pid = strpart(pids[0], 10)
+				let g:latexmk_running_pids[basepath] = pid
+			else
+				let pid = substitute(system('pgrep -f ' . mainfile),'\D','','')
+				let g:latexmk_running_pids[basepath] = pid
+			endif
+		else
+			" Execute command
+			echo 'Compiling to ' . g:LatexBox_output_type . '...'
+			let cmd_output = system(cmd)
+
 			" Check for errors
 			call LatexBox_LatexErrors(v:shell_error)
 			if v:shell_error > 0
@@ -221,10 +287,6 @@ function! LatexBox_Latexmk(force)
 			else
 				echomsg "No file change detected. Skipping."
 			endif
-		else
-			" Save PID in order to be able to kill the process when wanted.
-			let pid = substitute(system('pgrep -f ' . mainfile),'\D','','')
-			let g:latexmk_running_pids[basepath] = pid
 		endif
 	endif
 
@@ -243,16 +305,24 @@ function! LatexBox_LatexmkClean(cleanall)
 		return
 	endif
 
-	let cmd = '! cd ' . shellescape(LatexBox_GetTexRoot()) . ';'
+	if has('win32')
+		let cmd = 'cd /D ' . shellescape(LatexBox_GetTexRoot()) . ' & '
+	else
+		let cmd = 'cd ' . shellescape(LatexBox_GetTexRoot()) . ';'
+	endif
 	if a:cleanall
 		let cmd .= 'latexmk -C '
 	else
 		let cmd .= 'latexmk -c '
 	endif
 	let cmd .= shellescape(LatexBox_GetMainTexFile())
-	let cmd .= '>&/dev/null'
+	if has('win32')
+		let cmd .= ' >nul'
+	else
+		let cmd .= ' >&/dev/null'
+	endif
 
-	silent execute cmd
+	call system(cmd)
 	if !has('gui_running')
 		redraw!
 	endif

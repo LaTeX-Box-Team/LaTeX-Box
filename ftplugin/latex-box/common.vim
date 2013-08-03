@@ -181,13 +181,29 @@ endfunction
 " }}}
 
 " View Output {{{
+
+" Default pdf viewer
+if !exists('g:LatexBox_viewer')
+	if has('win32')
+		" On windows, 'running' a file will open it with the default program 
+		let g:LatexBox_viewer = ''
+	else
+		let g:LatexBox_viewer = 'xdg-open'
+	endif
+endif
+
 function! LatexBox_View()
 	let outfile = LatexBox_GetOutputFile()
 	if !filereadable(outfile)
 		echomsg fnamemodify(outfile, ':.') . ' is not readable'
 		return
 	endif
-	let cmd = '!' . g:LatexBox_viewer . ' ' . shellescape(outfile) . ' >&/dev/null &'
+	let cmd = g:LatexBox_viewer . ' ' . shellescape(outfile)
+	if has('win32')
+		let cmd = '!start /b' . cmd . ' >nul'
+	else
+		let cmd = '!' . cmd . ' >/dev/null &'
+	endif
 	silent execute cmd
 	if !has("gui_running")
 		redraw!
