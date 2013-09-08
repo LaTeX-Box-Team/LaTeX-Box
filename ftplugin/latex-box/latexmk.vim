@@ -338,7 +338,7 @@ function! LatexBox_LatexErrors(status, ...)
 
 	" set cwd to expand error file correctly
 	let l:cwd = fnamemodify(getcwd(), ':p')
-	execute 'lcd ' . LatexBox_GetTexRoot()
+	execute 'lcd ' . fnameescape(LatexBox_GetTexRoot())
 	try
 		if g:LatexBox_autojump
 			execute 'cfile ' . fnameescape(log)
@@ -347,7 +347,7 @@ function! LatexBox_LatexErrors(status, ...)
 		endif
 	finally
 		" restore cwd
-		execute 'lcd ' . l:cwd
+		execute 'lcd ' . fnameescape(l:cwd)
 	endtry
 
 	" Always open window if started by LatexErrors command
