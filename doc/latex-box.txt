@@ -511,6 +511,11 @@ Compilation ~
         recompile automatically when necessary, without hanging VIM. Note that
         this will disable automatic error loading.
 
+*g:LatexBox_latexmk_env*                        Default: ""
+        Additional environment options to place in front of the latexmk
+        command, e.g. >
+                let g:LatexBox_latexmk_env = "TEXINPUTS=~/mytex:"
+
 *g:LatexBox_latexmk_options*                    Default: ""
         Additional options to pass to latexmk during compilation, e.g, "-d".
 
