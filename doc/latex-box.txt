@@ -200,7 +200,7 @@ The results: >
         \[hello,
         world
 
-For equation envirments, it's always triggered by '$': >
+For equation environments, it's always triggered by '$': >
 
         \begin{eq-env}
                 $h <CTRL-X><CTRL-O>
