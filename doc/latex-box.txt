@@ -656,7 +656,7 @@ folded.
 
 ==============================================================================
 
-INDENDATION                                                 *latex-box-indent*
+INDENTATION                                                 *latex-box-indent*
 
 *g:LatexBox_custom_indent*              Default: Not defined
         The custom indent file of LaTeX-Box is ignored if this variable is
