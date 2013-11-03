@@ -14,6 +14,9 @@ endif
 if !exists('g:LatexBox_latexmk_preview_continuously')
 	let g:LatexBox_latexmk_preview_continuously = 0
 endif
+if !exists('g:LatexBox_enable_synctex')
+	let g:LatexBox_enable_synctex = 1
+endif
 if !exists('g:LatexBox_output_type')
 	let g:LatexBox_output_type = 'pdf'
 endif
@@ -178,6 +181,10 @@ function! LatexBox_Latexmk(force)
 	endif
 	if g:LatexBox_latexmk_preview_continuously
 		let cmd .= ' -pvc'
+	endif
+	if g:LatexBox_enable_synctex
+		let cmd .= ' -e ' . shellescape('$pdflatex =~ s/ / -synctex=1 /')
+		let cmd .= ' -e ' . shellescape('$latex =~ s/ / -synctex=1 /')
 	endif
 	let cmd .= ' -e ' . shellescape('$pdflatex =~ s/ / -file-line-error /')
 	let cmd .= ' -e ' . shellescape('$latex =~ s/ / -file-line-error /')
