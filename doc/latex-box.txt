@@ -517,8 +517,9 @@ Compilation ~
 *g:LatexBox_latexmk_preview_continuously*       Default: 0
         Run latexmk in continuous mode (i.e. with the "-pvc" option).
         Latexmk will track the currently edited file for writes and
-        recompile automatically when necessary, without hanging VIM. Note that
-        this will disable automatic error loading.
+        recompile automatically when necessary, without hanging VIM.
+        Setting |g:LatexBox_quickfix|=2 is recommended when this is enabled,
+        to prevent the quickfix window from stealing the cursor.
 
 *g:LatexBox_latexmk_env*                        Default: ""
         Additional environment options to place in front of the latexmk
