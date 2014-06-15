@@ -328,6 +328,9 @@ function! LatexBox_BibComplete(regexp)
 		let type = printf('%-' . s:type_length . 's', type)
 		let auth = m['author'] == '' ? ''    :       m['author'][:20] . ' '
 		let auth = substitute(auth, '\~', ' ', 'g')
+        if match(auth, ",") != -1
+            let auth = matchstr(auth, '\w\+\ze,' ) . ' et al.'
+        endif
 		let year = m['year']   == '' ? ''    : '(' . m['year']   . ')'
 		let w = { 'word': m['key'],
 				\ 'abbr': type . auth . year,
