@@ -19,6 +19,11 @@ noremap <buffer> <LocalLeader>le :LatexErrors<CR>
 noremap <buffer> <LocalLeader>lv :LatexView<CR>
 " }}}
 
+" Synctex {{{
+if g:LatexBox_enable_synctex
+	map <buffer> <LocalLeader>ls :LatexForwardSearch<CR>
+endif
+
 " TOC {{{
 noremap <silent> <buffer> <LocalLeader>lt :LatexTOC<CR>
 " }}}
