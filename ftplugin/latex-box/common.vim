@@ -274,7 +274,7 @@ function! LatexBox_View(...)
 		if fnamemodify(&shell, ':t') ==# 'fish'
 			let cmd .= ' >/dev/null ^/dev/null &'
 		else
-			let cmd .= ' &>/dev/null &'
+			let cmd .= ' >/dev/null 2>&1 &'
 		endif
 	endif
 	silent execute cmd
