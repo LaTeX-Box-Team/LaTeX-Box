@@ -206,6 +206,7 @@ function! s:FindBibData(...)
 	"
 	let bibliography_cmds = [
 				\ '\\bibliography',
+				\ '\\nobibliography',
 				\ '\\addbibresource',
 				\ '\\addglobalbib',
 				\ '\\addsectionbib',
