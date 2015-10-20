@@ -56,6 +56,10 @@ endfunction
 " Finding Matching Pair {{{
 function! s:FindMatchingPair(mode)
 
+	if a:mode =~ 'n\|v\|o'
+		let oldpos = getpos('.')
+	endif
+
 	if a:mode =~ 'h\|i'
 		2match none
 	elseif a:mode == 'v'
@@ -161,6 +165,14 @@ function! s:FindMatchingPair(mode)
 		endfor
 
 	endif
+
+	if a:mode =~ 'n\|v\|o'
+		let newpos = getpos('.')
+		call setpos('.', oldpos)
+		normal! m'
+		call setpos('.', newpos)
+	endif
+
 endfunction
 
 " Allow to disable functionality if desired
