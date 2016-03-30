@@ -88,9 +88,9 @@ function! s:TOCActivate(close)
 
     " Find section in buffer (or inputted files)
     if entry['level'] == 'label'
-        let re = '\(\\label\_\s*{\|label\s*=\s*\)' . titlestr . '\>'
+        let re = '\(\\label\_\s*{\|label\s*=\s*\)' . titlestr . '\>\c'
     else
-        let re = '\\' . entry['level'] . '\_\s*{' . titlestr . '}'
+        let re = '\\' . entry['level'] . '\_\s*{' . titlestr . '}\c'
     endif
     call s:TOCFindMatch(re, duplicates, files)
 
