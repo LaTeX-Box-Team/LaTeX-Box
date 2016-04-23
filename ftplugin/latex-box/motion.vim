@@ -349,26 +349,31 @@ function! s:ReadTOC(auxfile, texfile, ...)
 		if len(tree) > 3 && empty(tree[1])
 			call remove(tree, 1)
 		endif
-		if len(tree) > 1 && type(tree[0]) == type("") && tree[0] =~ '^\\\(\(chapter\)\?numberline\|tocsection\)'
-			let secnum = LatexBox_TreeToTex(tree[1])
-			let secnum = substitute(secnum, '\\\S\+\s', '', 'g')
-			let secnum = substitute(secnum, '\\\S\+{\(.\{-}\)}', '\1', 'g')
-			let secnum = substitute(secnum, '^{\+\|}\+$', '', 'g')
-			call remove(tree, 1)
-		endif
-		" parse section title
-		let text = LatexBox_TreeToTex(tree)
-		let text = substitute(text, '^{\+\|}\+$',                 '', 'g')
-		let text = substitute(text, '\m^\\\(no\)\?\(chapter\)\?numberline\s*', '', '')
-		let text = substitute(text, '\*',                         '', 'g')
 
-		" add TOC entry
-		call add(fileindices[texfile], len(toc))
-		call add(toc, {'file': texfile,
-					\ 'level': level,
-					\ 'number': secnum,
-					\ 'text': text,
-					\ 'page': page})
+		" only include section types we know how to parse.
+		if len(tree) > 1 && type(tree[0]) == type("") && tree[0] =~ '^\\\(chapter\)\?\(numberline\|toc\(sub\)*section\)'
+			
+			if len(tree[1]) >= 1
+				" Check if tree[1] has at least one string under it.
+				let secnum = tree[1][0] 
+			endif
+			
+
+			" parse section title
+			let text = LatexBox_TreeToTex(tree[2])
+			let text = substitute(text, '^{\+\|}\+$','', 'g')
+			let text = substitute(text, '\m^\\\(no\)\?\(chapter\)\?\(numberline\|toc\(sub\)*section\s*{\)\s*', '', '')
+			
+			" add TOC entry
+			call add(fileindices[texfile], len(toc))
+			call add(toc, {'file': texfile,
+						\ 'level': level,
+						\ 'number': secnum,
+						\ 'text': text,
+						\ 'page': page})
+			
+		endif
+
 	endfor
 
 	return [toc, fileindices]
