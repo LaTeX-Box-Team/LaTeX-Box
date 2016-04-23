@@ -43,6 +43,8 @@ function! s:EscapeTitle(titlestr)
     let titlestr = substitute(a:titlestr, '\\[a-zA-Z@]*\>\s*{\?', '.*', 'g')
     let titlestr = substitute(titlestr, '}', '', 'g')
     let titlestr = substitute(titlestr, '\%(\.\*\s*\)\{2,}', '.*', 'g')
+    " replaces equations in titles with .* 
+    let titlestr = substitute(titlestr, '\$.*\$', '.*','g')
     return titlestr
 endfunction
 
