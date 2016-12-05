@@ -2,6 +2,9 @@
 
 " Options and variables {{{
 
+if !exists('g:Latexbox_auto_preview')
+	let g:LatexBox_auto_preview = 0
+endif
 if !exists('g:LatexBox_latexmk_options')
 	let g:LatexBox_latexmk_options = ''
 endif
@@ -97,6 +100,9 @@ function! s:LatexmkCallback(basename, status)
 		call remove(g:latexmk_running_pids, a:basename)
 	endif
 	call LatexBox_LatexErrors(a:status, a:basename)
+	if g:LatexBox_auto_preview
+		call LatexBox_view(line('.'))
+	endif
 endfunction
 
 function! s:setup_vim_server()
