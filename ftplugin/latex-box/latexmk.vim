@@ -101,7 +101,7 @@ function! s:LatexmkCallback(basename, status)
 	endif
 	call LatexBox_LatexErrors(a:status, a:basename)
 	if g:LatexBox_auto_preview
-		call LatexBox_view(line('.'))
+		call LatexBox_View(line('.'))
 	endif
 endfunction
 
