@@ -199,8 +199,12 @@ function! LatexBox_Latexmk(force)
 	if g:LatexBox_latexmk_preview_continuously
 		let cmd .= ' -pvc'
 	endif
-	let cmd .= ' -e ' . shellescape('$pdflatex =~ s/ / -file-line-error /')
-	let cmd .= ' -e ' . shellescape('$latex =~ s/ / -file-line-error /')
+	" lualatex mode cannot treat these kind of initialization codes
+	" so just ignore it if g:LatexBox_latexmk_options include '-lualatex'
+	if !(g:LatexBox_latexmk_options =~ '-lualatex')
+		let cmd .= ' -e ' . shellescape('$pdflatex =~ s/ / -file-line-error /')
+		let cmd .= ' -e ' . shellescape('$latex =~ s/ / -file-line-error /')
+	endif
 	if g:LatexBox_latexmk_preview_continuously
 		let cmd .= ' -e ' . shellescape('$success_cmd = $ENV{SUCCESSCMD}')
 		let cmd .= ' -e ' . shellescape('$failure_cmd = $ENV{FAILURECMD}')
