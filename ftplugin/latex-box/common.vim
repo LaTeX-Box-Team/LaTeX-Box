@@ -45,11 +45,13 @@ if g:LatexBox_show_warnings
 	endfor
 	setlocal efm+=%+WLaTeX\ %.%#Warning:\ %.%#line\ %l%.%#
 	setlocal efm+=%+W%.%#\ at\ lines\ %l--%*\\d
+	setlocal efm+=%+W%.%#\ at\ line\ %l
 	setlocal efm+=%+WLaTeX\ %.%#Warning:\ %m
 	setlocal efm+=%+W%.%#Warning:\ %m
 else
 	setlocal efm+=%-WLaTeX\ %.%#Warning:\ %.%#line\ %l%.%#
 	setlocal efm+=%-W%.%#\ at\ lines\ %l--%*\\d
+	setlocal efm+=%-W%.%#\ at\ line\ %l
 	setlocal efm+=%-WLaTeX\ %.%#Warning:\ %m
 	setlocal efm+=%-W%.%#Warning:\ %m
 endif
