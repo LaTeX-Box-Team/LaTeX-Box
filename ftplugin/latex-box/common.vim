@@ -58,6 +58,15 @@ endif
 setlocal efm+=%+P**%f
 setlocal efm+=%+P**\"%f\"
 
+" The following lines are based on the |errorformat-LaTeX| example.
+setlocal efm+=%-O(%f)
+setlocal efm+=%-P\ %\\=(%f
+setlocal efm+=%-P%*[^()](%f
+setlocal efm+=%-P[%\\d%[^()]%#(%f
+setlocal efm+=%-Q)
+setlocal efm+=%-Q%*[^()])
+setlocal efm+=%-Q[%\\d%*[^()])
+
 " Ignore unmatched lines
 setlocal efm+=%-G%.%#
 " }}}
