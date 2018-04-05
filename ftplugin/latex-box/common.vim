@@ -48,6 +48,7 @@ if g:LatexBox_show_warnings
 	setlocal efm+=%+W%.%#\ at\ line\ %l
 	setlocal efm+=%+WLaTeX\ %.%#Warning:\ %m
 	setlocal efm+=%+W%.%#Warning:\ %m
+	setlocal efm+=%+W%moutput\ is\ active\ %.%#
 else
 	setlocal efm+=%-WLaTeX\ %.%#Warning:\ %.%#line\ %l%.%#
 	setlocal efm+=%-W%.%#\ at\ lines\ %l--%*\\d
