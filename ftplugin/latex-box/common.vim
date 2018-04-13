@@ -45,11 +45,14 @@ if g:LatexBox_show_warnings
 	endfor
 	setlocal efm+=%+WLaTeX\ %.%#Warning:\ %.%#line\ %l%.%#
 	setlocal efm+=%+W%.%#\ at\ lines\ %l--%*\\d
+	setlocal efm+=%+W%.%#\ at\ line\ %l
 	setlocal efm+=%+WLaTeX\ %.%#Warning:\ %m
 	setlocal efm+=%+W%.%#Warning:\ %m
+	setlocal efm+=%+W%moutput\ is\ active\ %.%#
 else
 	setlocal efm+=%-WLaTeX\ %.%#Warning:\ %.%#line\ %l%.%#
 	setlocal efm+=%-W%.%#\ at\ lines\ %l--%*\\d
+	setlocal efm+=%-W%.%#\ at\ line\ %l
 	setlocal efm+=%-WLaTeX\ %.%#Warning:\ %m
 	setlocal efm+=%-W%.%#Warning:\ %m
 endif
@@ -57,6 +60,22 @@ endif
 " Push file to file stack
 setlocal efm+=%+P**%f
 setlocal efm+=%+P**\"%f\"
+
+" Ignore package info messages
+" Also prevent parenthesized package names in those messages to be parsed as
+" path.
+setlocal efm+=%-IPackage\ %m\ on\ input\ line\ %l.%\\=
+setlocal efm+=%-IPackage\ %m
+setlocal efm+=%C(%.%#)\ \ \ \ \ \ \ \ %.%#
+
+" Further file stack parsing
+" ( opens a file, ) closes a file, page number are given in brackets and are
+" omitted.
+setlocal efm+=%-P\ %\\=(%f%r
+setlocal efm+=%-Q)%r
+setlocal efm+=%-O[%*\\d]%r
+setlocal efm+=%-O[%.%#
+setlocal efm+=%-O]%r
 
 " Ignore unmatched lines
 setlocal efm+=%-G%.%#
