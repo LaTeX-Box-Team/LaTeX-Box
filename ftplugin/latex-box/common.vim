@@ -61,14 +61,21 @@ endif
 setlocal efm+=%+P**%f
 setlocal efm+=%+P**\"%f\"
 
-" The following lines are based on the |errorformat-LaTeX| example.
-setlocal efm+=%-O(%f)
-setlocal efm+=%-P\ %\\=(%f
-setlocal efm+=%-P%*[^()](%f
-setlocal efm+=%-P[%\\d%[^()]%#(%f
-setlocal efm+=%-Q)
-setlocal efm+=%-Q%*[^()])
-setlocal efm+=%-Q[%\\d%*[^()])
+" Ignore package info messages
+" Also prevent parenthesized package names in those messages to be parsed as
+" path.
+setlocal efm+=%-IPackage\ %m\ on\ input\ line\ %l.%\\=
+setlocal efm+=%-IPackage\ %m
+setlocal efm+=%C(%.%#)\ \ \ \ \ \ \ \ %.%#
+
+" Further file stack parsing
+" ( opens a file, ) closes a file, page number are given in brackets and are
+" omitted.
+setlocal efm+=%-P\ %\\=(%f%r
+setlocal efm+=%-Q)%r
+setlocal efm+=%-O[%*\\d]%r
+setlocal efm+=%-O[%.%#
+setlocal efm+=%-O]%r
 
 " Ignore unmatched lines
 setlocal efm+=%-G%.%#
